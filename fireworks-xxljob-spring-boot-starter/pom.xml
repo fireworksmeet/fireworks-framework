@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yzm.fireworks</groupId>
+        <artifactId>fireworks-spring-boot-parent</artifactId>
+        <version>${revision}</version>
+        <!-- ⚡️ 这个绝对不能少！指引 Maven 在本地物理目录向上找父 POM -->
+        <relativePath>../fireworks-spring-boot-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>fireworks-xxljob-spring-boot-starter</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.yzm.fireworks</groupId>
+            <artifactId>fireworks-common-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xuxueli</groupId>
+            <artifactId>xxl-job-core</artifactId>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--
+        模板变量说明（templateParams 中需传入）：
+          username      必填  用户名，如 "zhangsan"
+          companyName   必填  公司或产品名称，如 "Fireworks"
+          tagline       选填  产品一句话介绍，如 "高效构建，快速起飞"
+          supportEmail  选填  客服邮箱，如 "support@example.com"
+                              有值时底部展示可点击联系邮箱；
+                              无值时不显示任何联系提示，避免空指引。
+
+        关于 platform 字段：
+          platform 用于标识是哪个业务平台（如 "app-ios" / "app-android" / "admin" / "h5"），
+          不用于控制模板内容的渲染差异。欢迎邮件应保持内容通用，
+          用户打开对应客户端登录即可，无需在邮件中嵌入跳转按钮。
+    -->
+    <title>欢迎加入</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #f7f6f2;
+            font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        @media only screen and (max-width: 600px) {
+            .outer-td       { padding: 20px 12px !important; }
+            .hero-td        { padding: 44px 28px 36px !important; }
+            .hero-title     { font-size: 30px !important; line-height: 1.25 !important; }
+            .hero-sub       { font-size: 13px !important; }
+            .body-td        { padding: 32px 28px !important; }
+            .row-label      { font-size: 11px !important; width: 28% !important; }
+            .row-value      { font-size: 14px !important; }
+            .desc-p         { font-size: 13px !important; }
+            .footer-td      { padding: 18px 28px !important; }
+        }
+    </style>
+</head>
+<body>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+       style="background-color:#f7f6f2; min-height:100vh;">
+    <tr>
+        <td class="outer-td" align="center" style="padding:48px 20px;">
+            <table role="presentation" cellspacing="0" cellpadding="0"
+                   style="width:100%; max-width:540px;">
+
+                <!-- ── Hero 区 ── -->
+                <tr>
+                    <td class="hero-td"
+                        style="background-color:#18181b; border-radius:20px 20px 0 0;
+                               padding:56px 48px 48px; text-align:left;">
+
+                        <!-- 装饰圆点 + 品牌名 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                               style="margin-bottom:44px;">
+                            <tr>
+                                <td style="vertical-align:middle;">
+                                    <table role="presentation" cellspacing="0" cellpadding="0">
+                                        <tr>
+                                            <td width="8" height="8"
+                                                style="background:#c8f135; border-radius:50%; font-size:0; line-height:0;">&nbsp;</td>
+                                            <td width="5">&nbsp;</td>
+                                            <td width="8" height="8"
+                                                style="background:#ff6b35; border-radius:50%; opacity:0.7; font-size:0; line-height:0;">&nbsp;</td>
+                                            <td width="5">&nbsp;</td>
+                                            <td width="8" height="8"
+                                                style="background:#35c8f1; border-radius:50%; opacity:0.5; font-size:0; line-height:0;">&nbsp;</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td align="right" style="vertical-align:middle;">
+                                    <span style="font-size:11px; font-weight:600;
+                                                 letter-spacing:0.2em; text-transform:uppercase;
+                                                 color:#3a3a3e; font-family:'Courier New',monospace;">
+                                        <span th:text="${companyName}">FIREWORKS</span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- 主标题 -->
+                        <h1 class="hero-title"
+                            style="font-size:36px; font-weight:800; color:#f7f6f2;
+                                   line-height:1.22; letter-spacing:-0.03em; margin-bottom:14px;">
+                            欢迎加入，<br>
+                            <span th:text="${username}" style="color:#c8f135;">朋友</span>。
+                        </h1>
+
+                        <!-- tagline（可选） -->
+                        <p class="hero-sub" th:if="${tagline}"
+                           style="font-size:14px; color:#52525b; line-height:1.65;">
+                            <span th:text="${tagline}"></span>
+                        </p>
+
+                    </td>
+                </tr>
+
+                <!-- ── 白色内容区 ── -->
+                <tr>
+                    <td class="body-td"
+                        style="background-color:#ffffff; padding:40px 48px;
+                               border-left:1px solid #e8e5de; border-right:1px solid #e8e5de;">
+
+                        <p class="desc-p" style="font-size:15px; line-height:1.8; color:#3f3f46; margin-bottom:32px;">
+                            你的账户已成功创建，以下是账户信息，请妥善保管。
+                        </p>
+
+                        <!-- 账户信息 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                               style="border-collapse:collapse; margin-bottom:36px;">
+
+                            <!-- 用户名 -->
+                            <tr>
+                                <td class="row-label"
+                                    style="padding:14px 0; border-bottom:1px solid #f4f1ea;
+                                           font-size:11px; font-weight:700; color:#a8a29e;
+                                           text-transform:uppercase; letter-spacing:0.1em;
+                                           width:28%; vertical-align:top;">
+                                    用户名
+                                </td>
+                                <td class="row-value"
+                                    style="padding:14px 0 14px 16px; border-bottom:1px solid #f4f1ea;
+                                           font-size:15px; color:#18181b; word-break:break-all;
+                                           vertical-align:top;">
+                                    <span th:text="${username}">username</span>
+                                </td>
+                            </tr>
+
+                            <!-- 状态 -->
+                            <tr>
+                                <td class="row-label"
+                                    style="padding:14px 0; font-size:11px; font-weight:700;
+                                           color:#a8a29e; text-transform:uppercase;
+                                           letter-spacing:0.1em; vertical-align:top;">
+                                    状态
+                                </td>
+                                <td style="padding:14px 0 14px 16px; vertical-align:top;">
+                                    <span style="display:inline-block; padding:3px 10px;
+                                                 background-color:#f0fde4; border:1px solid #bef264;
+                                                 border-radius:20px; font-size:12px; font-weight:600;
+                                                 color:#4d7c0f; letter-spacing:0.04em;">
+                                        ✓ 已激活
+                                    </span>
+                                </td>
+                            </tr>
+
+                        </table>
+
+                        <p class="desc-p" style="font-size:14px; line-height:1.8; color:#71717a;">
+                            账户已就绪，使用注册邮箱或手机号在对应客户端登录即可开始使用。
+                        </p>
+
+
+                    </td>
+                </tr>
+
+                <!-- ── 底部：客服联系（可选）+ 版权居中 ── -->
+                <tr>
+                    <td class="footer-td"
+                        style="background-color:#f7f6f2; border-radius:0 0 20px 20px;
+                               padding:18px 48px 16px; border:1px solid #e8e5de; border-top:none;
+                               text-align:center;">
+                        <!-- 有 supportEmail 时展示，否则不渲染 -->
+                        <p th:if="${supportEmail}"
+                           style="margin:0 0 10px; font-size:12px; line-height:1.7; color:#a8a29e;">
+                            如需帮助，请联系客服&nbsp;
+                            <a th:href="'mailto:' + ${supportEmail}"
+                               th:text="${supportEmail}"
+                               style="color:#78716c; text-decoration:underline;
+                                      text-underline-offset:2px;">
+                                support@example.com
+                            </a>
+                        </p>
+                        <span style="font-size:11px; color:#c8c4bb;
+                                     font-family:'Courier New',monospace;">
+                            © <span th:text="${#dates.year(#dates.createNow())}">2025</span>
+                            &nbsp;<span th:text="${companyName}">FIREWORKS</span>
+                        </span>
+                    </td>
+                </tr>
+
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

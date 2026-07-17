@@ -1,0 +1,89 @@
+name: 自动发布 Jar 包到统一私服
+
+on:
+  push:
+    # 场景一：向 main 分支推送代码时触发（日常开发，自动发布 SNAPSHOT 快照包）
+    branches: [ "main" ]
+    # 场景二：在 main 分支上打发版 Tag 时触发，比如推送了 v1.0.0（发布 RELEASE 正式包）
+    tags: [ "v*" ]
+  # 手动触发
+  workflow_dispatch:
+
+# 💡 新增并发控制：同一个分支/标签有新提交时，自动取消上一次排队/运行中的任务
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 核心安全：最小权限
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-to-registry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. 拉取当前项目源码
+        uses: actions/checkout@v6
+
+      - name: 2. 初始化 Java 运行环境并缓存依赖
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: 3. 手动、干净地生成 settings.xml
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <interactiveMode>false</interactiveMode>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${{ github.actor }}</username>
+                <password>${{ secrets.MAVEN_DEPLOY_TOKEN }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: 4. 自动根据 Git Tag 修改 pom.xml 的 revision 属性
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # 1. 提取 Tag 中的版本号（例如：refs/tags/v0.0.1 提取出 0.0.1）
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          echo "🏷️ 检测到发版标签，目标版本号自动设置为: $TAG_VERSION"
+          
+          # 2. 动态修改 pom.xml 中的 revision 属性
+          # 这会把 pom.xml 里的 <revision>1.0.0-SNAPSHOT</revision> 临时修改为 <revision>0.0.1</revision>
+          mvn versions:set-property -Dproperty=revision -DnewVersion=$TAG_VERSION -DgenerateBackupPoms=false
+
+      - name: 5. 生产级卡点校验：如果是 Tag 发布，强制拦截 SNAPSHOT 版本
+        # 💡 防御性设计：只有打 Tag (v*) 触发时才执行此卡点
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "🔍 正在进行发布前置检查..."
+          # 此时读取到的 CURRENT_VERSION 应该是已经被上一步修改过的 0.0.1 了！
+          CURRENT_VERSION=$(mvn help:evaluate -Dexpression=revision -q -DforceStdout)
+          echo "📌 当前项目修改后的实际 revision 版本为: $CURRENT_VERSION"
+          
+          if [[ "$CURRENT_VERSION" == *"-SNAPSHOT" ]]; then
+            echo "================================================================="
+            echo "❌ [ERROR] 编译熔断：自动修改版本号失败，当前版本依然是: $CURRENT_VERSION"
+            echo "================================================================="
+            exit 1
+          fi
+          echo "✅ 版本格式检查通过，准备发布 RELEASE 正式包！"
+
+      - name: 6. 执行编译、打包并发布到统一仓库
+        run: |
+          mvn clean deploy \
+            -B \
+            --no-transfer-progress \
+            -DaltReleaseDeploymentRepository=github::default::${{ vars.GLOBAL_MAVEN_RELEASE_URL }} \
+            -DaltSnapshotDeploymentRepository=github::default::${{ vars.GLOBAL_MAVEN_SNAPSHOT_URL }}

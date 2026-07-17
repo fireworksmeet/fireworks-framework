@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.yzm.fireworks</groupId>
+    <artifactId>fireworks-framework</artifactId>
+    <version>${revision}</version>
+    <packaging>pom</packaging>
+    <modules>
+        <module>fireworks-dependencies</module>
+        <module>fireworks-spring-boot-parent</module>
+        <module>fireworks-redis-spring-boot-starter</module>
+        <module>fireworks-common-spring-boot-starter</module>
+        <module>fireworks-xxljob-spring-boot-starter</module>
+        <module>fireworks-rest-client-spring-boot-starter</module>
+        <module>fireworks-web-spring-boot-starter</module>
+        <module>fireworks-storage-spring-boot-starter</module>
+        <module>fireworks-api-spring-boot-starter</module>
+        <module>fireworks-export-spring-boot-starter</module>
+        <module>fireworks-id-spring-boot-starter</module>
+        <module>fireworks-saga-spring-boot-starter</module>
+        <module>fireworks-token-spring-boot-starter</module>
+        <module>fireworks-msg-spring-boot-starter</module>
+        <module>fireworks-webflux-client-spring-boot-starter</module>
+    </modules>
+
+    <properties>
+        <!-- 全局唯一版本控制 -->
+        <revision>1.0.0-SNAPSHOT</revision>
+        <java.version>21</java.version>
+        <!-- 指定 项目源码 文件编码为 UTF-8 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- 指定 报告 文件编码为 UTF-8 -->
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- 指定 编译目标 Java 版本的编码 -->
+        <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
+    </properties>
+
+    <build>
+        <plugins>
+            <!-- 版本扁平化插件：确保多模块版本统一发布 -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

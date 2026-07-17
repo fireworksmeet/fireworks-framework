@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yzm.fireworks</groupId>
+        <artifactId>fireworks-dependencies</artifactId>
+        <version>${revision}</version>
+        <relativePath>../fireworks-dependencies/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>fireworks-spring-boot-parent</artifactId>
+    <packaging>pom</packaging>
+
+    <dependencies>
+        <!-- 1. 统一引入 Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <!-- 💡 核心改动：大厂更推荐使用 scope=provided。
+                 它不仅效果等同于 optional=true（不传递依赖），还能更明确地告诉 Maven：
+                 “这个依赖只在编译和测试时需要，运行时由环境或打包后的别处提供” -->
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 2. 统一引入 Spring Boot 配置元数据处理器 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <!-- 💡 保持 optional=true。
+                 因为这个处理器在运行时完全用不着，只有在业务配置 properties 时由 IDE 读取，
+                 设置为 optional 可以防止它被打包进最终的业务业务 Jar 包中 -->
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <!-- 统一编译插件：强行锁定整个项目的 JDK 编译版本 -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version> <!-- 建议显式指定一个较新的插件版本 -->
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <encoding>UTF-8</encoding>
+                    <!-- 针对 Java 17/21，建议加上这个参数，防止打包后丢掉反射方法名（比如 Spring 构造函数注入或 @RequestParam 绑定） -->
+                    <parameters>true</parameters>
+                    <annotationProcessorPaths>
+                        <!-- 编译期真正干活的 Lombok 处理器 -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <!-- 编译期生成 properties 提示 json 的处理器 -->
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                            <version>${spring-boot.version}</version>
+                        </path>
+                        <!-- 加上你的 MapStruct 编译路径（如有） -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>${lombok-mapstruct-binding.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

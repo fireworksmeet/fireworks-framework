@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yzm.fireworks</groupId>
+        <artifactId>fireworks-spring-boot-parent</artifactId>
+        <version>${revision}</version>
+        <!-- ⚡️ 这个绝对不能少！指引 Maven 在本地物理目录向上找父 POM -->
+        <relativePath>../fireworks-spring-boot-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>fireworks-token-spring-boot-starter</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.yzm.fireworks</groupId>
+            <artifactId>fireworks-common-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

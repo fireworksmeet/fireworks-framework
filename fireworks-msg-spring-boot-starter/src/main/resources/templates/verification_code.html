@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--
+        模板变量说明（templateParams 中需传入）：
+          code            必填  验证码字符串，如 "847293"
+          action          必填  操作描述，如 "登录验证" / "注册" / "修改密码" / "身份核验"
+          expireMinutes   必填  有效期分钟数，如 "5"
+          companyName     必填  公司或产品名称，如 "Fireworks"
+          supportEmail    选填  客服邮箱，有值则在底部展示
+    -->
+    <title>验证码</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        @media only screen and (max-width: 600px) {
+            .outer-td    { padding: 20px 12px !important; }
+            .header-td   { padding: 24px 24px 20px !important; }
+            .tag-td      { padding: 28px 24px 0 !important; }
+            .title-td    { padding: 10px 24px 24px !important; }
+            .title-text  { font-size: 20px !important; }
+            .code-td     { padding: 0 24px 24px !important; }
+            .code-digits { font-size: 36px !important; letter-spacing: 10px !important; padding-left: 10px !important; }
+            .expire-p    { font-size: 11px !important; }
+            .desc-td     { padding: 0 24px 28px !important; }
+            .footer-td   { padding: 14px 24px !important; }
+        }
+    </style>
+</head>
+<body>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+       style="background-color:#f0f2f5;">
+    <tr>
+        <td class="outer-td" align="center" style="padding:48px 20px;">
+            <table role="presentation" cellspacing="0" cellpadding="0"
+                   style="width:100%; max-width:500px;">
+
+                <!-- 品牌行 -->
+                <tr>
+                    <td class="header-td" style="padding:0 4px 18px;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td>
+                                    <span style="font-size:12px; font-weight:700;
+                                                 letter-spacing:0.2em; text-transform:uppercase;
+                                                 color:#94a3b8; font-family:'Courier New',monospace;">
+                                        <span th:text="${companyName}">FIREWORKS</span>
+                                    </span>
+                                </td>
+                                <td align="right">
+                                    <span style="font-size:11px; color:#cbd5e1;
+                                                 font-family:'Courier New',monospace; letter-spacing:0.06em;">
+                                        无需回复
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <!-- 主卡片 -->
+                <tr>
+                    <td style="background-color:#ffffff; border-radius:16px;
+                               box-shadow:0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+                               overflow:hidden;">
+
+                        <!-- 顶部强调色条 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td height="4"
+                                    style="background:linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+                                           font-size:0; line-height:0;">&nbsp;</td>
+                            </tr>
+                        </table>
+
+                        <!-- 操作标签 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td class="tag-td" style="padding:32px 40px 0;">
+                                    <span style="display:inline-block; padding:4px 12px;
+                                                 background-color:#ede9fe; border-radius:6px;
+                                                 font-size:11px; font-weight:600;
+                                                 letter-spacing:0.12em; text-transform:uppercase;
+                                                 color:#7c3aed;">
+                                        <span th:text="${action}">身份验证</span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- 标题 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td class="title-td" style="padding:12px 40px 28px;">
+                                    <h1 class="title-text"
+                                        style="font-size:24px; font-weight:700; color:#1e293b;
+                                               line-height:1.35; letter-spacing:-0.02em;">
+                                        这是你的验证码
+                                    </h1>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- 验证码展示 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td class="code-td" style="padding:0 40px 28px;">
+                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                                           style="background:linear-gradient(135deg, #faf5ff 0%, #eff6ff 100%);
+                                                  border-radius:12px; border:1px solid #e0e7ff;">
+                                        <tr>
+                                            <td align="center" style="padding:28px 24px;">
+                                                <span class="code-digits" th:text="${code}"
+                                                      style="display:block;
+                                                             font-family:'Courier New',Courier,monospace;
+                                                             font-size:44px; font-weight:800;
+                                                             letter-spacing:14px; padding-left:14px;
+                                                             color:#4f46e5; line-height:1;
+                                                             text-align:center;">
+                                                    000000
+                                                </span>
+                                                <p class="expire-p"
+                                                   style="margin-top:14px; font-size:12px;
+                                                          color:#94a3b8; text-align:center;
+                                                          letter-spacing:0.06em;">
+                                                    有效期 <span th:text="${expireMinutes}">5</span> 分钟
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- 说明文字 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td class="desc-td" style="padding:0 40px 36px;">
+                                    <p style="font-size:14px; line-height:1.8; color:#64748b; margin-bottom:10px;">
+                                        将上方验证码填入对应输入框，即可完成
+                                        <span style="color:#475569; font-weight:500;"
+                                              th:text="${action}">验证</span>。
+                                        验证码在
+                                        <span style="color:#475569; font-weight:500;"
+                                              th:text="${expireMinutes}">5</span>
+                                        分钟内有效，请尽快使用。
+                                    </p>
+                                    <p style="font-size:13px; line-height:1.7; color:#94a3b8;">
+                                        若非本人操作，请忽略此邮件，你的账户不会受到影响。
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- 分割线 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td height="1" style="background-color:#f1f5f9; font-size:0; line-height:0;">&nbsp;</td>
+                            </tr>
+                        </table>
+
+                        <!-- 底部：客服联系（可选）+ 版权居中 -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td class="footer-td" style="padding:16px 40px 18px; text-align:center;">
+                                    <p th:if="${supportEmail}"
+                                       style="margin:0 0 8px; font-size:12px; line-height:1.7; color:#94a3b8;">
+                                        如需帮助，请联系客服&nbsp;
+                                        <a th:href="'mailto:' + ${supportEmail}"
+                                           th:text="${supportEmail}"
+                                           style="color:#6366f1; text-decoration:underline;
+                                                  text-underline-offset:2px;">
+                                            support@example.com
+                                        </a>
+                                    </p>
+                                    <span style="font-size:11px; color:#cbd5e1;
+                                                 font-family:'Courier New',monospace;">
+                                        © <span th:text="'2024-' + ${#dates.year(#dates.createNow())}">2024-2025</span>
+                                        &nbsp;<span th:text="${companyName}">FIREWORKS</span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+
+                    </td>
+                </tr>
+
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>
