@@ -18,7 +18,7 @@ public class OptionEnumScanProperties {
     /**
      * 是否启用选项枚举自动扫描
      */
-    private boolean enable = false;
+    private boolean enabled = false;
 
     /**
      * 扫描包路径列表
@@ -27,7 +27,7 @@ public class OptionEnumScanProperties {
      * <pre>
      * fireworks:
      *   option-enum:
-     *     enable: true
+     *     enabled: true
      *     scan-packages:
      *       - com.yzm.fireworks.api.common.enums
      *       - com.yzm.other.enums
