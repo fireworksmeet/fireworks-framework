@@ -24,57 +24,42 @@ import java.util.stream.Collectors;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@SuperBuilder
 @Accessors(chain = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(title = "分页响应")
 public class PageResponse<T> {
 
-    /**
-     * 数据
-     */
     @Schema(title = "分页数据")
     private List<T> records;
 
-    /**
-     * 当前页
-     */
-    @Schema(title = "当前页")
+    @Schema(description = "当前页（Offset模式）")
     private Long current;
 
-    /**
-     * pageSize
-     */
     @Schema(title = "分页大小")
     private Long size;
 
-    /**
-     * 总数
-     */
-    @Schema(title = "总数")
+    @Schema(description = "总数（searchCount=false 时为 null）")
     private Long total;
 
-    /**
-     * 页脚
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private T footer;
+    @Schema(description = "是否有下一页")
+    private Boolean hasMore;
 
+    @Schema(description = "下一页游标（Cursor模式使用）")
+    private String nextCursor;
+
+    // ==================== 1. 传统 Offset 模式工厂方法（兼容 MyBatis-Plus） ====================
     public static <R, T> PageResponse<R> empty(IPage<T> page) {
         PageResponse<R> result = new PageResponse<>();
         result.setCurrent(page.getCurrent());
         result.setSize(page.getSize());
         result.setTotal(page.getTotal());
+        result.setHasMore(false);
         result.setRecords(new ArrayList<>());
         return result;
     }
 
     public static <T> PageResponse<T> create(IPage<T> page) {
-        PageResponse<T> response = new PageResponse<>();
-        response.setCurrent(page.getCurrent());
-        response.setSize(page.getSize());
-        response.setTotal(page.getTotal());
-        response.setRecords(page.getRecords());
-        return response;
+        return create(page, Function.identity());
     }
 
     public static <R, T> PageResponse<R> create(IPage<T> page, Function<T, R> function) {
@@ -87,9 +72,67 @@ public class PageResponse<T> {
                 page.getRecords().stream()
                         .map(function)
                         .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
+                        .toList();
         response.setRecords(records);
+        response.setHasMore(calcHasMore(page.getCurrent(), page.getSize(), page.getTotal(), page.getRecords()));
         return response;
+    }
+
+    // ==================== 2. App / 海量数据 Cursor 模式工厂方法 ====================
+
+    /**
+     * 构建游标分页响应（适用于瀑布流、ES search_after、基于 ID/时间游标）
+     * 采用业务标准的 Limit size + 1 技巧自动算 hasMore 和截断
+     *
+     * @param records            查出的原始数据（建议 SQL limit size + 1）
+     * @param size               请求的 pageSize
+     * @param nextCursorFunction 提取最后一条记录生成 nextCursor 的函数
+     */
+    public static <T> PageResponse<T> ofCursor(List<T> records, Long size, Function<T, String> nextCursorFunction) {
+        return ofCursor(records, size, Function.identity(), nextCursorFunction);
+    }
+
+    /**
+     * 游标模式带类型转换（PO -> VO）
+     */
+    public static <R, T> PageResponse<R> ofCursor(List<T> records, Long size, Function<T, R> mapper, Function<T, String> nextCursorFunction) {
+        PageResponse<R> response = new PageResponse<>();
+        response.setSize(size);
+
+        if (ObjectUtils.isEmpty(records)) {
+            response.setRecords(Collections.emptyList());
+            response.setHasMore(false);
+            return response;
+        }
+
+        // 判断是否有下一页（如果查出来的数量大于请求的 size，说明有下一页）
+        boolean hasMore = records.size() > size;
+        List<T> realRecords = hasMore ? records.subList(0, size.intValue()) : records;
+
+        // 执行 PO -> VO 转换
+        List<R> mappedRecords = realRecords.stream()
+                .map(mapper)
+                .filter(Objects::nonNull)
+                .toList();
+
+        response.setRecords(mappedRecords);
+        response.setHasMore(hasMore);
+
+        // 如果有下一页，拿截取后最后一条记录提取出 nextCursor
+        if (hasMore && nextCursorFunction != null && !realRecords.isEmpty()) {
+            T lastRecord = realRecords.getLast();
+            response.setNextCursor(nextCursorFunction.apply(lastRecord));
+        }
+
+        return response;
+    }
+
+    // 计算 Offset 模式下是否有下一页
+    protected static <T> Boolean calcHasMore(Long current, Long size, Long total, List<T> records) {
+        if (total != null && total >= 0) {
+            return (current * size) < total;
+        }
+        return records != null && records.size() >= size;
     }
 
 }

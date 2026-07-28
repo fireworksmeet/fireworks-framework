@@ -1,5 +1,6 @@
 package com.yzm.fireworks.storage.minio;
 
+import com.yzm.fireworks.common.util.Base64Util;
 import com.yzm.fireworks.storage.api.ImageOptions;
 import com.yzm.fireworks.common.util.StrUtil;
 import com.yzm.fireworks.storage.core.exception.StorageException;
@@ -30,7 +31,6 @@ final class ImgproxyUrlBuilder {
 
     private static final String HMAC_SHA256 = "HmacSHA256";
     private static final HexFormat HEX = HexFormat.of();
-    private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
 
 
     private ImgproxyUrlBuilder() {
@@ -49,7 +49,7 @@ final class ImgproxyUrlBuilder {
     static String buildImageUrl(String endpoint, String prefix, String keyHex, String saltHex,
                                  String sourceUrl, ImageOptions options) {
         String processingOptions = buildProcessingOptions(options);
-        String path = SLASH + processingOptions + SLASH + encodeSourceUrl(sourceUrl);
+        String path = SLASH + processingOptions + SLASH + Base64Util.encodeUrl(sourceUrl);
 
         String signatureSegment = (StringUtils.hasText(keyHex) && StringUtils.hasText(saltHex))
                 ? sign(keyHex, saltHex, path)
@@ -103,17 +103,9 @@ final class ImgproxyUrlBuilder {
             Mac mac = Mac.getInstance(HMAC_SHA256);
             mac.init(new SecretKeySpec(HEX.parseHex(keyHex), HMAC_SHA256));
             mac.update(HEX.parseHex(saltHex));
-            return URL_ENCODER.encodeToString(mac.doFinal(path.getBytes(StandardCharsets.UTF_8)));
+            return Base64Util.encodeUrl(mac.doFinal(path.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
             throw new StorageException("计算 imgproxy 签名失败，请检查 fireworks.storage.minio.imgproxy.key/salt 是否为合法的十六进制字符串", e);
         }
-    }
-
-    /**
-     * 对源 URL 按字节做百分号编码：保留 ASCII 字母数字及 URI 中常见的非保留/保留字符，其余（含所有非 ASCII 多字节字符）
-     * 一律转义为 %XX。在字节层面编码可以正确处理 UTF-8 多字节字符，无需额外区分字符编码。
-     */
-    private static String encodeSourceUrl(String sourceUrl) {
-        return URL_ENCODER.encodeToString(sourceUrl.getBytes(StandardCharsets.UTF_8));
     }
 }

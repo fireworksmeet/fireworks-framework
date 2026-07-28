@@ -6,6 +6,7 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.yzm.fireworks.common.util.Base64Util;
 import com.yzm.fireworks.common.util.ObjectMapperUtil;
 import com.yzm.fireworks.common.util.StrUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +32,6 @@ import static com.yzm.fireworks.common.constants.StringPool.SPACE;
 public class TokenUtil {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final Base64.Encoder BASE64_ENCODER = Base64.getUrlEncoder();
 
     /**
      * token应该有足够的长度，以抵抗暴力破解，建议至少32字节
@@ -114,7 +114,7 @@ public class TokenUtil {
     public static String generateSecureToken(int byteLength) {
         byte[] randomBytes = new byte[byteLength];
         SECURE_RANDOM.nextBytes(randomBytes);
-        return BASE64_ENCODER.withoutPadding().encodeToString(randomBytes);
+        return Base64Util.encodeUrl(randomBytes);
     }
 
     /**
