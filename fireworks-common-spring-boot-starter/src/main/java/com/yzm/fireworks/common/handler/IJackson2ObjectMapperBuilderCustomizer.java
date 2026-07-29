@@ -63,12 +63,12 @@ public class IJackson2ObjectMapperBuilderCustomizer implements Jackson2ObjectMap
                 .serializationInclusion(JsonInclude.Include.NON_NULL);
 
         // Java8时间类配置
-        builder.serializerByType(LocalDateTime.class, new LocalDateTimeSerializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_TIME_FORMAT)))
-                .serializerByType(LocalDate.class, new LocalDateSerializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT)))
-                .serializerByType(LocalTime.class, new LocalTimeSerializer(DateTimeFormatter.ofPattern(DEFAULT_TIME_FORMAT)))
-                .deserializerByType(LocalDateTime.class, new LocalDateTimeDeserializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_TIME_FORMAT)))
-                .deserializerByType(LocalDate.class, new LocalDateDeserializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT)))
-                .deserializerByType(LocalTime.class, new LocalTimeDeserializer(DateTimeFormatter.ofPattern(DEFAULT_TIME_FORMAT)));
+        builder.serializerByType(LocalDateTime.class, new LocalDateTimeSerializer(FORMATTER_DATE_TIME))
+                .serializerByType(LocalDate.class, new LocalDateSerializer(FORMATTER_DATE))
+                .serializerByType(LocalTime.class, new LocalTimeSerializer(FORMATTER_TIME))
+                .deserializerByType(LocalDateTime.class, new LocalDateTimeDeserializer(FORMATTER_DATE_TIME))
+                .deserializerByType(LocalDate.class, new LocalDateDeserializer(FORMATTER_DATE))
+                .deserializerByType(LocalTime.class, new LocalTimeDeserializer(FORMATTER_TIME));
 
         // 配置BigDecimal
         SimpleModule simpleModule = new SimpleModule()
