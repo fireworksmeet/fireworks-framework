@@ -16,6 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -46,15 +47,13 @@ import java.time.LocalDateTime;
 public class OptLogInterceptor implements MethodInterceptor {
 
     private final OptLogMetadataSource metadataSource;
-    @Nullable
     private final OptLogOperatorProvider operatorProvider;
-    @Nullable
     private final OptLogService optLogService;
 
     public OptLogInterceptor(
             OptLogMetadataSource metadataSource,
-            @Nullable OptLogOperatorProvider operatorProvider,
-            @Nullable OptLogService optLogService) {
+            @Nullable @Lazy OptLogOperatorProvider operatorProvider,
+            @Nullable @Lazy OptLogService optLogService) {
         this.metadataSource = metadataSource;
         this.operatorProvider = operatorProvider;
         this.optLogService = optLogService;

@@ -13,6 +13,7 @@ import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Role;
 import org.springframework.core.Ordered;
 import org.springframework.lang.NonNull;
@@ -34,8 +35,8 @@ public class OptLogConfiguration {
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public OptLogInterceptor optLogInterceptor(
             OptLogMetadataSource optLogMetadataSource,
-            @Autowired(required = false) OptLogOperatorProvider operatorProvider,
-            @Autowired(required = false) OptLogService optLogService) {
+            @Autowired(required = false) @Lazy OptLogOperatorProvider operatorProvider,
+            @Autowired(required = false) @Lazy OptLogService optLogService) {
         return new OptLogInterceptor(optLogMetadataSource, operatorProvider, optLogService);
     }
 
