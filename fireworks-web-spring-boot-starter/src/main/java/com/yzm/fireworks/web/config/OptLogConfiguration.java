@@ -23,6 +23,7 @@ import org.springframework.lang.NonNull;
  *
  * @author JYuan
  */
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class OptLogConfiguration {
 
     @Bean

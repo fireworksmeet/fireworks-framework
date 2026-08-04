@@ -55,6 +55,7 @@ import static com.yzm.fireworks.redis.Constants.*;
 @AutoConfiguration
 @AutoConfigureBefore(RedisAutoConfiguration.class)
 @EnableConfigurationProperties(MultiRedisProperties.class)
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class FireworksRedisAutoConfiguration {
 
     /**
