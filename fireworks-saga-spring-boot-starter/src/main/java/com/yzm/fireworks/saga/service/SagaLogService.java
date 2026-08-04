@@ -2,7 +2,7 @@ package com.yzm.fireworks.saga.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
-import com.yzm.fireworks.common.util.ObjectMapperUtil;
+import com.yzm.fireworks.common.util.JsonUtil;
 import com.yzm.fireworks.common.util.TimeUtil;
 import com.yzm.fireworks.saga.SagaLog;
 import com.yzm.fireworks.saga.SagaProperties;
@@ -198,13 +198,13 @@ public class SagaLogService {
         if (ObjectUtils.isEmpty(param)) {
             return null;
         }
-        return ObjectMapperUtil.stringify(param);
+        return JsonUtil.stringify(param);
     }
 
     public <T> T deserialize(String param, SagaStep<T> step) {
         if (StringUtils.hasText(param)) {
             Class<T> genericType = (Class<T>) ResolvableType.forClass(step.getClass()).as(SagaStep.class).getGeneric(0).resolve();
-            return ObjectMapperUtil.deserialize(param, genericType);
+            return JsonUtil.deserialize(param, genericType);
         }
         return null;
     }

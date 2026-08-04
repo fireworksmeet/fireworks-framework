@@ -1,4 +1,4 @@
-package com.yzm.fireworks.web.properties;
+package com.yzm.fireworks.web.config.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

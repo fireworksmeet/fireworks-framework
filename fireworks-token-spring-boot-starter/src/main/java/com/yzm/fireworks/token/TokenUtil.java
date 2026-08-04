@@ -7,7 +7,7 @@ import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.yzm.fireworks.common.util.Base64Util;
-import com.yzm.fireworks.common.util.ObjectMapperUtil;
+import com.yzm.fireworks.common.util.JsonUtil;
 import com.yzm.fireworks.common.util.StrUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +16,6 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.Map;
 
 import static com.yzm.fireworks.common.constants.StringPool.SPACE;
@@ -148,6 +147,6 @@ public class TokenUtil {
             throw new TokenException("Failed to parse JWT token", e);
         }
         Map<String, Object> object = jwtClaimsSet.getClaims();
-        return ObjectMapperUtil.convertValue(object, JWTClaim.class);
+        return JsonUtil.convertValue(object, JWTClaim.class);
     }
 }

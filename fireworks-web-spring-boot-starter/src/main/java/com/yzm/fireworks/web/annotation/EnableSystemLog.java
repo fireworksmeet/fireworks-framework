@@ -1,8 +1,8 @@
 package com.yzm.fireworks.web.annotation;
 
 
-import com.yzm.fireworks.web.aspectj.SystemLogAspect;
-import com.yzm.fireworks.web.properties.SystemLogProperties;
+import com.yzm.fireworks.web.config.SystemLogConfiguration;
+import com.yzm.fireworks.web.config.properties.SystemLogProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Import;
 
@@ -15,7 +15,7 @@ import java.lang.annotation.*;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Import(SystemLogAspect.class)
+@Import(SystemLogConfiguration.class)
 @EnableConfigurationProperties(SystemLogProperties.class)
 public @interface EnableSystemLog {
 

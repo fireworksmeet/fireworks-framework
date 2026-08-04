@@ -3,7 +3,7 @@ package com.yzm.fireworks.web.model;
 /**
  * 操作人信息接口
  *
- * <p>业务项目的 LoginUser 实现此接口后，{@link com.yzm.fireworks.web.aspectj.OptLogAspect}
+ * <p>业务项目的 LoginUser 实现此接口后，{@link com.yzm.fireworks.web.aop.OptLogInterceptor}
  * 即可自动从 SecurityContext 中提取操作人 ID 和用户名，无需业务层手动传入。
  *
  * <p>示例：

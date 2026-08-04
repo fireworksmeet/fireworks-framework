@@ -2,12 +2,22 @@ package com.yzm.fireworks.redis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.yzm.fireworks.common.aop.MetadataSourcePointcut;
+import com.yzm.fireworks.redis.lock.DistributedLock;
+import com.yzm.fireworks.redis.lock.DistributedLockInterceptor;
+import com.yzm.fireworks.redis.lock.DistributedLockMetadataSource;
+import com.yzm.fireworks.redis.lock.LockService;
 import io.lettuce.core.resource.ClientResources;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import org.springframework.aop.Pointcut;
+import org.springframework.aop.support.AbstractBeanFactoryPointcutAdvisor;
+import org.springframework.aop.support.DefaultBeanFactoryPointcutAdvisor;
+import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -17,11 +27,13 @@ import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Role;
+import org.springframework.core.Ordered;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
@@ -61,9 +73,33 @@ public class FireworksRedisAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
-    public static DistributedLockAspect distributedLockAspect(@Lazy LockService lockService) {
-        return new DistributedLockAspect(lockService);
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    public DistributedLockMetadataSource distributedLockMetadataSource() {
+        return new DistributedLockMetadataSource();
+    }
+
+    @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    public DistributedLockInterceptor distributedLockInterceptor(DistributedLockMetadataSource metadataSource, LockService lockService) {
+        return new DistributedLockInterceptor(metadataSource, lockService);
+    }
+
+    @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    public AbstractBeanFactoryPointcutAdvisor distributedLockAdvisor(DistributedLockInterceptor interceptor,DistributedLockMetadataSource metadataSource) {
+        AbstractBeanFactoryPointcutAdvisor advisor = new AbstractBeanFactoryPointcutAdvisor() {
+
+            private final Pointcut pointcut = new MetadataSourcePointcut<>(metadataSource);
+
+            @Override
+            @NonNull
+            public Pointcut getPointcut() {
+                return pointcut;
+            }
+        };
+        advisor.setAdvice(interceptor);
+        advisor.setOrder(Ordered.HIGHEST_PRECEDENCE); // 保持最高优先级, 最低可以用 Ordered.LOWEST_PRECEDENCE
+        return advisor;
     }
 
     @Bean

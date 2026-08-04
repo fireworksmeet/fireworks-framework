@@ -1,10 +1,10 @@
-package com.yzm.fireworks.web.aspectj;
+package com.yzm.fireworks.web.aop;
 
 import com.google.common.base.Stopwatch;
 import com.yzm.fireworks.api.annotation.OptLog;
 import com.yzm.fireworks.common.constants.StringPool;
 import com.yzm.fireworks.common.util.ApplicationContextUtil;
-import com.yzm.fireworks.common.util.ObjectMapperUtil;
+import com.yzm.fireworks.common.util.JsonUtil;
 import com.yzm.fireworks.web.context.OptLogContext;
 import com.yzm.fireworks.web.model.OptLogOperator;
 import com.yzm.fireworks.web.service.OptLogService;
@@ -16,10 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
-import org.springframework.aop.support.StaticMethodMatcherPointcutAdvisor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -28,7 +25,7 @@ import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 
 /**
- * 操作日志切面
+ * 操作日志拦截器
  *
  * <p>拦截所有标注了 {@link OptLog} 的方法，在方法执行完毕后同步构建 {@link OptLogContext}，
  * 再交给 {@link OptLogService#handleLog} 处理（通常为异步落库）。
@@ -46,29 +43,32 @@ import java.time.LocalDateTime;
  * @author JYuan
  */
 @Slf4j
-public class OptLogAspect extends StaticMethodMatcherPointcutAdvisor implements MethodInterceptor {
+public class OptLogInterceptor implements MethodInterceptor {
 
-    @Lazy
-    @Autowired(required = false)
-    private OptLogOperatorProvider operatorProvider;
+    private final OptLogMetadataSource metadataSource;
+    @Nullable
+    private final OptLogOperatorProvider operatorProvider;
+    @Nullable
+    private final OptLogService optLogService;
 
-    @Lazy
-    @Autowired(required = false)
-    private OptLogService optLogService;
-
-    public OptLogAspect() {
-        this.setAdvice(this);
-    }
-
-    @Override
-    public boolean matches(Method method, Class<?> targetClass) {
-        return AnnotatedElementUtils.hasAnnotation(method, OptLog.class);
+    public OptLogInterceptor(
+            OptLogMetadataSource metadataSource,
+            @Nullable OptLogOperatorProvider operatorProvider,
+            @Nullable OptLogService optLogService) {
+        this.metadataSource = metadataSource;
+        this.operatorProvider = operatorProvider;
+        this.optLogService = optLogService;
     }
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
         Method method = invocation.getMethod();
-        Object[] arguments = invocation.getArguments();
+        Class<?> targetClass = invocation.getThis() != null ? invocation.getThis().getClass() : null;
+
+        OptLogAttribute attribute = metadataSource.getMetadata(method, targetClass);
+        if (attribute == null || ObjectUtils.isEmpty(optLogService)) {
+            return invocation.proceed();
+        }
 
         // ── 在方法执行前同步采集请求上下文 ──────────────────────────────────
         String ip = null, userAgent = null, browser = null, os = null,
@@ -88,7 +88,7 @@ public class OptLogAspect extends StaticMethodMatcherPointcutAdvisor implements 
                 requestMethod = request.getMethod();
             }
         } catch (Exception e) {
-            log.debug("[OptLogAspect] 获取请求信息失败: {}", e.getMessage());
+            log.debug("[OptLogInterceptor] 获取请求信息失败: {}", e.getMessage());
         }
 
         // ── 通过 SPI 获取操作人（与认证框架解耦） ────────────────────────────
@@ -105,7 +105,7 @@ public class OptLogAspect extends StaticMethodMatcherPointcutAdvisor implements 
                 }
             }
         } catch (Exception e) {
-            log.debug("[OptLogAspect] 获取操作人信息失败: {}", e.getMessage());
+            log.debug("[OptLogInterceptor] 获取操作人信息失败: {}", e.getMessage());
         }
 
         // ── 执行目标方法 ──────────────────────────────────────────────────────
@@ -120,13 +120,13 @@ public class OptLogAspect extends StaticMethodMatcherPointcutAdvisor implements 
             throw t;
         } finally {
             String costTime = stopwatch.stop().toString();
-            buildAndHandleLog(method, arguments, result, ex, costTime,
+            buildAndHandleLog(invocation, attribute, result, ex, costTime,
                     ip, userAgent, browser, os, requestUri, requestMethod,
                     operatorId, operatorName);
         }
     }
 
-    private void buildAndHandleLog(Method method, Object[] args, Object result, Throwable ex,
+    private void buildAndHandleLog(MethodInvocation invocation, OptLogAttribute attribute, Object result, Throwable ex,
                                    String costTime, String ip, String userAgent, String browser,
                                    String os, String requestUri, String requestMethod,
                                    Long operatorId, String operatorName) {
@@ -135,16 +135,16 @@ public class OptLogAspect extends StaticMethodMatcherPointcutAdvisor implements 
         }
 
         try {
-            OptLog annotation = AnnotatedElementUtils.findMergedAnnotation(method, OptLog.class);
-            if (annotation == null) {
-                return;
-            }
+
+            Method method = invocation.getMethod();
+            Class<?> targetClass = invocation.getThis() != null ? invocation.getThis().getClass() : null;
+            Object[] arguments = invocation.getArguments();
 
             OptLogContext.OptLogContextBuilder builder = OptLogContext.builder()
-                    .module(annotation.module())
-                    .type(annotation.type())
-                    .description(annotation.description())
-                    .className(method.getDeclaringClass().getName())
+                    .module(attribute.getModule())
+                    .type(attribute.getType())
+                    .description(attribute.getDescription())
+                    .className(targetClass != null ? targetClass.getName() : null)
                     .methodName(method.getName())
                     .success(ex == null)
                     .costTime(costTime)
@@ -158,18 +158,17 @@ public class OptLogAspect extends StaticMethodMatcherPointcutAdvisor implements 
                     .requestUri(requestUri)
                     .requestMethod(requestMethod)
                     .method(method)
-                    .methodArgs(args)
+                    .methodArgs(arguments)
                     .result(result)
-                    .throwable(ex)
-                    .annotation(annotation);
+                    .throwable(ex);
 
-            if (annotation.recordArgs() && !ObjectUtils.isEmpty(args)) {
+            if (attribute.isRecordArgs() && !ObjectUtils.isEmpty(arguments)) {
                 // 获取方法参数注解，进行脱敏处理
                 Annotation[][] paramAnnotations = method.getParameterAnnotations();
-                Object[] processedArgs = JoinPointUtil.processParams(args, paramAnnotations);
+                Object[] processedArgs = JoinPointUtil.processParams(arguments, paramAnnotations);
                 builder.argsJson(safeToJson(processedArgs));
             }
-            if (annotation.recordResult() && !ObjectUtils.isEmpty(result)) {
+            if (attribute.isRecordResult() && !ObjectUtils.isEmpty(result)) {
                 builder.resultJson(safeToJson(result));
             }
             if (ex != null) {
@@ -180,13 +179,13 @@ public class OptLogAspect extends StaticMethodMatcherPointcutAdvisor implements 
 
             optLogService.handleLog(builder.build());
         } catch (Exception e) {
-            log.warn("[OptLogAspect] 构建操作日志失败", e);
+            log.warn("[OptLogInterceptor] 构建操作日志失败", e);
         }
     }
 
     private String safeToJson(Object obj) {
         try {
-            return ObjectMapperUtil.stringify(obj);
+            return JsonUtil.stringify(obj);
         } catch (Exception e) {
             return "[序列化失败: " + e.getMessage() + "]";
         }

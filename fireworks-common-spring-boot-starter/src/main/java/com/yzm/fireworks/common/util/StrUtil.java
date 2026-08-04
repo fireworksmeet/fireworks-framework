@@ -1,8 +1,9 @@
 package com.yzm.fireworks.common.util;
 
+import com.yzm.fireworks.common.constants.StringPool;
 import org.springframework.util.StringUtils;
 
-import static com.yzm.fireworks.common.constants.StringPool.TRUNCATED_SUFFIX;
+import static com.yzm.fireworks.common.constants.StringPool.*;
 
 public final class StrUtil {
 
@@ -61,7 +62,7 @@ public final class StrUtil {
         }
         int index = str.indexOf(separator);
         if (index < 0) {
-            return "";
+            return EMPTY;
         }
         return str.substring(index + separator.length());
     }
@@ -80,7 +81,7 @@ public final class StrUtil {
         }
         int index = str.lastIndexOf(separator);
         if (index < 0) {
-            return "";
+            return EMPTY;
         }
         return str.substring(index + separator.length());
     }

@@ -1,4 +1,4 @@
-package com.yzm.fireworks.redis;
+package com.yzm.fireworks.redis.lock;
 
 import lombok.Getter;
 

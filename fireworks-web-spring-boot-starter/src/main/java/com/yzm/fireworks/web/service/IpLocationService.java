@@ -1,6 +1,6 @@
 package com.yzm.fireworks.web.service;
 
-import com.yzm.fireworks.web.properties.IpLocationProperties;
+import com.yzm.fireworks.web.config.properties.IpLocationProperties;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;

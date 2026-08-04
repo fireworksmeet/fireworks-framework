@@ -1,7 +1,7 @@
 package com.yzm.fireworks.web.annotation;
 
 
-import com.yzm.fireworks.web.aspectj.OptLogAspect;
+import com.yzm.fireworks.web.config.OptLogConfiguration;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;
@@ -13,7 +13,7 @@ import java.lang.annotation.*;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Import(OptLogAspect.class)
+@Import(OptLogConfiguration.class)
 public @interface EnableOptLog {
 
 }

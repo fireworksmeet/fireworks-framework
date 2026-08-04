@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 /**
  * 操作日志上下文
  *
- * <p>由 {@link com.yzm.fireworks.web.aspectj.OptLogAspect} 在方法执行后同步构建，
+ * <p>由 {@link com.yzm.fireworks.web.aop.OptLogInterceptor} 在方法执行后同步构建，
  * 包含业务层所需的全部信息，业务实现可直接取用，无需再从 Request/SecurityContext 中提取。
  *
  * <p><b>设计说明</b>：
@@ -110,7 +110,4 @@ public class OptLogContext {
 
     /** 原始异常 */
     private transient Throwable throwable;
-
-    /** 原始注解 */
-    private transient OptLog annotation;
 }

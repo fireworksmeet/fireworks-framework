@@ -6,7 +6,7 @@ import com.yzm.fireworks.web.model.OptLogOperator;
 /**
  * 操作人信息提供者
  *
- * <p>框架层定义此接口，业务层提供实现，{@link com.yzm.fireworks.web.aspectj.OptLogAspect}
+ * <p>框架层定义此接口，业务层提供实现，{@link com.yzm.fireworks.web.aop.OptLogInterceptor}
  * 在运行时通过 Spring 容器懒加载，找不到实现则跳过操作人信息采集。
  *
  * <p>这样框架层与 Spring Security 完全解耦——使用 Security 的项目注册一个实现，

@@ -1,5 +1,7 @@
-package com.yzm.fireworks.redis;
+package com.yzm.fireworks.redis.lock;
 
+import com.yzm.fireworks.redis.Constants;
+import com.yzm.fireworks.redis.RedisUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
