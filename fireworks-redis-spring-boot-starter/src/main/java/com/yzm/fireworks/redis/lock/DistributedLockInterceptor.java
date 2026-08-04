@@ -3,6 +3,7 @@ package com.yzm.fireworks.redis.lock;
 import com.yzm.fireworks.common.util.SpelUtil;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
@@ -25,7 +26,7 @@ public class DistributedLockInterceptor implements MethodInterceptor {
     private final DistributedLockMetadataSource metadataSource;
     private final LockService lockService;
 
-    public DistributedLockInterceptor(DistributedLockMetadataSource metadataSource, LockService lockService) {
+    public DistributedLockInterceptor(DistributedLockMetadataSource metadataSource, @Lazy LockService lockService) {
         this.metadataSource = metadataSource;
         this.lockService = lockService;
     }

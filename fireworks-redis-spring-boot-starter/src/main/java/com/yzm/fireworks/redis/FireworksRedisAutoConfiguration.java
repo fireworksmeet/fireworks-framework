@@ -27,6 +27,7 @@ import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Role;
 import org.springframework.core.Ordered;
@@ -80,13 +81,13 @@ public class FireworksRedisAutoConfiguration {
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    public DistributedLockInterceptor distributedLockInterceptor(DistributedLockMetadataSource metadataSource, LockService lockService) {
+    public DistributedLockInterceptor distributedLockInterceptor(DistributedLockMetadataSource metadataSource, @Lazy LockService lockService) {
         return new DistributedLockInterceptor(metadataSource, lockService);
     }
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    public AbstractBeanFactoryPointcutAdvisor distributedLockAdvisor(DistributedLockInterceptor interceptor,DistributedLockMetadataSource metadataSource) {
+    public AbstractBeanFactoryPointcutAdvisor distributedLockAdvisor(DistributedLockInterceptor interceptor, DistributedLockMetadataSource metadataSource) {
         AbstractBeanFactoryPointcutAdvisor advisor = new AbstractBeanFactoryPointcutAdvisor() {
 
             private final Pointcut pointcut = new MetadataSourcePointcut<>(metadataSource);
