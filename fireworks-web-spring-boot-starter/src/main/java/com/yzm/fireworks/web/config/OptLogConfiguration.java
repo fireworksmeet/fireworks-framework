@@ -43,16 +43,6 @@ public class OptLogConfiguration {
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    public DefaultBeanFactoryPointcutAdvisor optLogAdvisor(OptLogInterceptor interceptor) {
-        DefaultBeanFactoryPointcutAdvisor advisor = new DefaultBeanFactoryPointcutAdvisor();
-        advisor.setPointcut(AnnotationMatchingPointcut.forMethodAnnotation(OptLog.class));
-        advisor.setAdvice(interceptor);
-        advisor.setOrder(Ordered.LOWEST_PRECEDENCE);
-        return advisor;
-    }
-
-    @Bean
-    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public AbstractBeanFactoryPointcutAdvisor optLogAdvisor(
             OptLogInterceptor optLogInterceptor,
             OptLogMetadataSource optLogMetadataSource) {
