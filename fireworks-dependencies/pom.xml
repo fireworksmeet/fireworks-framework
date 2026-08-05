@@ -56,10 +56,16 @@
         <powerjob.version>5.1.2</powerjob.version>
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
         <micrometer-tracing.version>1.7.0</micrometer-tracing.version>
+        <bcprov-jdk18on.version>1.84</bcprov-jdk18on.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bcprov-jdk18on.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.jetbrains</groupId>
                 <artifactId>annotations</artifactId>
