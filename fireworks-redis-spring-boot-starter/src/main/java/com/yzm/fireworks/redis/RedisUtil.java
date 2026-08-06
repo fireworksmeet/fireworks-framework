@@ -469,6 +469,65 @@ public class RedisUtil implements InitializingBean {
     }
 
     /**
+     * 按 score 范围升序查询 ZSet，返回成员与分数（TypedTuple）
+     *
+     * @param key 键
+     * @param min 最小 score（含）
+     * @param max 最大 score（含）
+     * @return 成员与分数集合
+     */
+    public static Set<ZSetOperations.TypedTuple<Object>> zSetRangeByScoreWithScores(String key, double min,
+                                                                                    double max) {
+        return instance().defaultContext.zSetRangeByScoreWithScores(key, min, max);
+    }
+
+    /**
+     * 按 score 范围升序分页查询 ZSet，返回成员与分数（TypedTuple）
+     *
+     * @param key    键
+     * @param min    最小 score（含）
+     * @param max    最大 score（含）
+     * @param offset 偏移量
+     * @param count  获取数量
+     * @return 成员与分数集合
+     */
+    public static Set<ZSetOperations.TypedTuple<Object>> zSetRangeByScoreWithScoresPage(String key, double min,
+                                                                                        double max,
+                                                                                        long offset, long count) {
+        return instance().defaultContext.zSetRangeByScoreWithScoresPage(key, min, max, offset, count);
+    }
+
+    /**
+     * 按 score 范围降序查询 ZSet，返回成员与分数（TypedTuple）
+     *
+     * @param key 键
+     * @param min 最小 score（含）
+     * @param max 最大 score（含）
+     * @return 成员与分数集合
+     */
+    public static Set<ZSetOperations.TypedTuple<Object>> zSetReverseRangeByScoreWithScores(String key, double min,
+                                                                                           double max) {
+        return instance().defaultContext.zSetReverseRangeByScoreWithScores(key, min, max);
+    }
+
+    /**
+     * 按 score 范围降序分页查询 ZSet，返回成员与分数（TypedTuple）
+     *
+     * @param key    键
+     * @param min    最小 score（含）
+     * @param max    最大 score（含）
+     * @param offset 偏移量
+     * @param count  获取数量
+     * @return 成员与分数集合
+     */
+    public static Set<ZSetOperations.TypedTuple<Object>> zSetReverseRangeByScoreWithScoresPage(String key, double min,
+                                                                                               double max,
+                                                                                               long offset,
+                                                                                               long count) {
+        return instance().defaultContext.zSetReverseRangeByScoreWithScoresPage(key, min, max, offset, count);
+    }
+
+    /**
      * 按 score 范围降序分页获取元素（不含 score）
      *
      * @param key    键

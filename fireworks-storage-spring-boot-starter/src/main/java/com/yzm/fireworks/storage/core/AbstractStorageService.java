@@ -28,6 +28,19 @@ public abstract class AbstractStorageService {
         return normalizeDir(dir) + fileName;
     }
 
+    /**
+     * 从完整 objectName 中提取目录前缀（去掉最后一段文件名，保留末尾斜杠），
+     * 用于表单直传(PostPolicy)等需要按目录前缀做匹配策略的场景。
+     * 例如 {@code temp/avatar/a1b2c3.jpg} 返回 {@code temp/avatar/}；无目录时返回空串。
+     */
+    protected String extractDirPrefix(String objectName) {
+        int lastSlash = objectName.lastIndexOf(SLASH);
+        if (lastSlash < 0) {
+            return EMPTY;
+        }
+        return objectName.substring(0, lastSlash + 1);
+    }
+
     protected String encodeFileName(String fileName) {
         return URLEncoder.encode(fileName, StandardCharsets.UTF_8);
     }

@@ -149,16 +149,22 @@ public class MinioStorageService extends AbstractStorageService implements Stora
                                     .build());
             boolean hasError = false;
             for (Result<DeleteError> result : results) {
-                DeleteError error = result.get();
-                log.warn("批量删除部分失败, bucket={}, object={}, code={}",
-                        bucket, error.objectName(), error.code());
-                hasError = true;
+                try {
+                    DeleteError error = result.get();
+                    log.warn("批量删除部分失败, bucket={}, object={}, code={}",
+                            bucket, error.objectName(), error.code());
+                    hasError = true;
+                } catch (Exception e) {
+                    log.error("读取 MinIO 批量删除结果失败, bucket={}", bucket, e);
+                    hasError = true;
+                }
             }
             if (hasError) {
                 log.warn("文件批量删除部分失败, bucket={}, count={}", bucket, objectNames.size());
             } else {
                 log.info("文件批量删除成功, bucket={}, count={}", bucket, objectNames.size());
             }
+
         } catch (Exception e) {
             throw new StorageException("批量删除文件失败: bucket=" + bucket, e);
         }

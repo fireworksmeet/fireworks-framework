@@ -19,6 +19,13 @@
             <artifactId>fireworks-common-spring-boot-starter</artifactId>
         </dependency>
 
+        <!-- 孤儿文件分布式清理的 Redis ZSet 实现依赖；optional 使得不使用孤儿清理的项目无需强制引入 redis -->
+        <dependency>
+            <groupId>com.yzm.fireworks</groupId>
+            <artifactId>fireworks-redis-spring-boot-starter</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>com.aliyun.oss</groupId>
             <artifactId>aliyun-sdk-oss</artifactId>
@@ -34,6 +41,18 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- 声明式自动确认（@AutoConfirmFile）所需：AOP + 事务提交回调；optional 便于不使用该能力的项目按需引入 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 </project>

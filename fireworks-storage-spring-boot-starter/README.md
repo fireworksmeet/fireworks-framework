@@ -70,10 +70,144 @@ private DirectUploadService directUploadService;
 - `DirectUploadService`：
   - `getUploadCredential`：预签名 PUT 直传凭证，前端直接 PUT 整个文件。
   - `getUploadCredentialByPostPolicy`：表单直传(PostPolicy)凭证，前端以 `multipart/form-data` POST 上传。
-    - Aliyun OSS：返回的 `formData.key` 已包含 `${filename}` 占位符，OSS 会自动替换为真实文件名；
-      配置了 `aliyun.callback-url` 时会自动携带 `callback` 表单字段，OSS 上传成功后会回调该地址。
-    - MinIO：S3 协议不支持 `${filename}` 占位符，返回的 `formData.key` 仅为目录前缀，
-      前端提交表单前需要在该前缀基础上拼接真实文件名（满足 `startsWith` 策略条件即可）。
+    - `objectName` 为后端生成的**完整对象路径（含文件名）**，会被精确写入 `formData.key`，
+      云厂商（OSS/S3）收到请求后直接以该值作为存储路径并忽略前端文件原名。
+      因此 `objectName` 与 `displayUrl` 在签发时即可 100% 确定并精确返回，前端无需做任何文件名替换。
+    - 后端生成 `objectName` 时可使用 UUID / SnowFlake ID / MD5 等唯一标识作为文件名，
+      彻底规避特殊字符、中文乱码、超长文件名导致的存储异常，以及不同用户上传同名文件造成的相互覆盖。
+    - Aliyun OSS：配置了 `aliyun.callback-url` 时会自动携带 `callback` 表单字段，OSS 上传成功后会回调该地址。
+    - MinIO：`formData.key` 同样写死为完整 `objectName`，PostPolicy 的 `startsWith` 条件使用其所在目录前缀。
+  - 两种凭证都会返回 `objectName` 与 `displayUrl` 两个字段：
+    - `objectName`：文件在云存储中的唯一相对路径/标识，是业务落库的核心字段。
+    - `displayUrl`：前端上传成功后的完整回显 URL（带 CDN 域名）。
+    - 预签名 PUT 与表单直传(PostPolicy)均返回精确值，无需前端替换占位符。
+
+  ```java
+  // 示例：后端生成唯一 objectName，表单直传
+  String objectName = "temp/avatar/202608/" + UUID.randomUUID() + ".jpg";
+  UploadCredential credential = directUploadService.getUploadCredentialByPostPolicy(bucket, objectName, duration);
+  // credential.getFormData().get("key")       == "temp/avatar/202608/xxxxx.jpg"
+  // credential.getObjectName()                == "temp/avatar/202608/xxxxx.jpg"
+  // credential.getDisplayUrl()                == "https://cdn.com/temp/avatar/202608/xxxxx.jpg"
+  ```
+
+## 孤儿文件处理
+
+**问题场景**：前端获取直传凭证后完成了上传，但后续没有提交业务表单，文件就会成为"孤儿文件"，
+日积月累导致存储空间被无用文件占用。
+
+**解决思路**：框架提供「待确认注册表 + 清理器」。业务层在发放凭证后登记一条"待确认"记录，
+业务处理成功（表单落库）后调用 `confirm` 确认；超过配置时长仍未确认的记录，由清理器扫描并删除对应对象。
+
+**注册表实现**：默认基于 **Redis ZSet**（键 `fireworks:storage:orphan:pending`，member 为 `bucket|objectName`，
+score 为截止时间戳）。利用 ZSet 按 score 有序 + Redis 单线程原子性，在高并发与多实例部署下
+登记/确认/过期扫描均安全一致。
+
+**定时调度**：框架**不内置任何定时任务**，只提供 `OrphanFileCleaner#cleanExpired()` 清理方法，
+由业务侧通过 XXL-Job、PowerJob 或 Spring `@Scheduled` 等调度器周期触发，多实例由调度平台保证单实例执行。
+
+### 接入（签发时自动登记 + 确认）
+
+默认配置 `auto-mark-pending=true` 时，`DirectUploadService` 在**签发凭证的同时自动登记**待确认记录，
+业务方无需手动调用 `pending`，从根本上避免漏写导致孤儿文件保护失效。业务方只需在业务处理成功后确认一次：
+
+```java
+@Resource
+private DirectUploadService directUploadService;   // 签发凭证（内部已自动登记待确认记录）
+@Resource
+private OrphanFileGuard orphanFileGuard;           // 业务确认
+
+// 1. 签发凭证（内部已自动登记待确认记录，TTL 用 default-ttl，默认 1 天）
+UploadCredential credential = directUploadService.getUploadCredential(bucket, objectName, Duration.ofHours(1));
+// 表单直传：directUploadService.getUploadCredentialByPostPolicy(bucket, objectName, duration)
+
+// 2. 业务处理成功（如表单提交落库）后确认文件已被正常使用
+orphanFileGuard.confirm(bucket, credential.getObjectName());
+```
+
+若需要更精确的待确认 TTL（覆盖凭证有效期 + 业务处理耗时），或关闭自动登记，可自行调用：
+
+```java
+orphanFileGuard.pending(bucket, objectName, Duration.ofHours(2)); // 手动登记（仅 auto-mark-pending=false 时需要）
+```
+
+> `objectName` 在签发凭证时即由后端精确生成，业务侧直接用 `credential.getObjectName()` 确认即可，无需额外处理文件名。
+> 自动登记仅在「孤儿清理能力启用（已引入 Redis）且 `auto-mark-pending=true`」时生效；
+> 未引入 Redis 时，签发凭证仅完成上传，不进行自动登记（文件存储功能不受影响）。
+
+### 声明式自动确认（推荐）
+
+显式调用 `orphanFileGuard.confirm(...)` 仍易被业务漏写。为此提供 **`@AutoConfirmFile`** 声明式注解：
+标注在 Service 保存方法上，方法执行成功后自动从**方法参数**解析文件路径并**批量确认**，事务回滚时不会误确认。
+
+实现采用与 OptLog / 分布式锁一致的 **`MetadataSource + Advisor`** 三件套模式（基于
+`AbstractAnnotationMetadataSource` + `MetadataSourcePointcut`）：注解元数据解析结果缓存、支持泛型桥接方法，
+首次命中后后续 0 反射。
+
+```java
+// 最常见：单个文件路径在入参 DTO 上（前端直传后把对象名传给后端保存）
+@AutoConfirmFile(objectName = "#userForm.avatarPath")
+public User save(UserForm userForm) {
+    // ... 业务保存，落库 avatarPath
+    return user;
+}
+
+// 批量：一组对象名（List<String>）作为参数
+@AutoConfirmFile(objectName = "#args[0]")
+public void savePics(List<String> picUrls) { ... }
+
+// 显式指定桶名（SpEL 或回退到配置 default-bucket）
+@AutoConfirmFile(bucket = "#userForm.bucket", objectName = "#userForm.avatarPath")
+public void save(UserForm form) { ... }
+```
+
+**`objectName` 必填（SpEL 驱动）**：通过 SpEL 从方法参数精确定位文件路径（参数名如 `#userForm.avatarPath`、
+位置访问如 `#args[0]`），避免盲目扫描造成误确认。**SpEL 变量**：方法参数名、`#args`（参数数组）。
+
+**结果规约**：SpEL 解析结果需为 `String` 或 `String` 的 `Collection`/数组，框架会展开为待确认记录并批量确认；
+其他类型会忽略并告警（不反射猜测）。
+
+**桶名兜底**：`String` 路径不携带桶名，依次使用注解 `bucket` SpEL、配置
+`fireworks.storage.orphan-cleanup.default-bucket`；仍无法确定则跳过该条并告警（需保证与登记时的桶一致才能匹配）。
+
+**事务语义**：默认在事务提交（`afterCommit`）后确认；方法不在事务中则执行成功后立即确认。
+依赖 `spring-boot-starter-aop` 与 `spring-tx`（storage 以 `optional` 引入），实际使用 `@AutoConfirmFile` 时建议在业务工程显式引入这两个依赖。
+
+### 定时清理（业务侧触发）
+
+```java
+@Resource
+private OrphanFileCleaner orphanFileCleaner;
+
+// 例：Spring @Scheduled 每 1 小时清理一次
+@Scheduled(fixedDelayString = "PT1H")
+public void cleanOrphanFiles() {
+    int deleted = orphanFileCleaner.cleanExpired();
+}
+```
+
+### 配置
+
+```yaml
+fireworks:
+  storage:
+    orphan-cleanup:
+      enabled: true                  # 是否启用清理能力，默认 true
+      auto-mark-pending: true        # 签发凭证时是否自动登记待确认记录，默认 true
+      redis-key: fireworks:storage:orphan:pending   # Redis ZSet 键名，多环境可隔离
+      default-bucket: user-file      # @AutoConfirmFile 解析到对象无桶名时的兜底桶，默认空
+      default-ttl: 1d                # 待确认记录默认有效时长，默认 1 天
+      batch-size: 100                # 单次扫描最多清理的记录数，默认 100
+      buckets:                       # 允许删除存储文件的桶白名单，留空表示不限制；
+                                     # 白名单外的桶即使登记过期也只移除 Redis 登记、不删文件（防误删、防积压）
+        - user-file
+```
+
+### 依赖说明
+
+孤儿清理的 Redis 实现依赖 `fireworks-redis-spring-boot-starter`（以 `optional` 引入）。
+引入 Redis 后自动注册 `RedisPendingFileRegistry`；不引入 Redis 时不注册，孤儿清理功能整体不生效。
+如需替换注册表实现，实现 `PendingFileRegistry` 接口并声明为 `@Bean` 即可自动取代默认实现。
 
 ## 注意事项
 

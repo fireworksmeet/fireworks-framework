@@ -362,6 +362,42 @@ public class RedisContext {
         return convert(set, typeReference);
     }
 
+    /**
+     * 按分数范围查询 ZSet，返回成员与分数（TypedTuple），升序。
+     */
+    public Set<ZSetOperations.TypedTuple<Object>> zSetRangeByScoreWithScores(String key, double min, double max) {
+        checkKey(key);
+        return jsonRedisTemplate.opsForZSet().rangeByScoreWithScores(key, min, max);
+    }
+
+    /**
+     * 按分数范围分页查询 ZSet，返回成员与分数（TypedTuple），升序。
+     */
+    public Set<ZSetOperations.TypedTuple<Object>> zSetRangeByScoreWithScoresPage(String key, double min, double max,
+                                                                                 long offset, long count) {
+        checkKey(key);
+        return jsonRedisTemplate.opsForZSet().rangeByScoreWithScores(key, min, max, offset, count);
+    }
+
+    /**
+     * 按分数范围查询 ZSet，返回成员与分数（TypedTuple），降序。
+     */
+    public Set<ZSetOperations.TypedTuple<Object>> zSetReverseRangeByScoreWithScores(String key, double min,
+                                                                                    double max) {
+        checkKey(key);
+        return jsonRedisTemplate.opsForZSet().reverseRangeByScoreWithScores(key, min, max);
+    }
+
+    /**
+     * 按分数范围分页查询 ZSet，返回成员与分数（TypedTuple），降序。
+     */
+    public Set<ZSetOperations.TypedTuple<Object>> zSetReverseRangeByScoreWithScoresPage(String key, double min,
+                                                                                        double max,
+                                                                                        long offset, long count) {
+        checkKey(key);
+        return jsonRedisTemplate.opsForZSet().reverseRangeByScoreWithScores(key, min, max, offset, count);
+    }
+
     public Long zSetRemoveByScore(String key, double min, double max) {
         checkKey(key);
         return jsonRedisTemplate.opsForZSet().removeRangeByScore(key, min, max);

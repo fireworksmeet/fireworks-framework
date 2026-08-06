@@ -4,7 +4,10 @@ import com.yzm.fireworks.storage.api.DirectUploadService;
 import com.yzm.fireworks.storage.api.StorageService;
 import com.yzm.fireworks.storage.core.StorageProperties;
 import com.yzm.fireworks.storage.core.StorageUrlUtils;
+import com.yzm.fireworks.storage.core.orphan.OrphanCleanupProperties;
+import com.yzm.fireworks.storage.core.orphan.OrphanFileGuard;
 import io.minio.MinioClient;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -70,7 +73,10 @@ public class MinioConfiguration {
     @ConditionalOnMissingBean(DirectUploadService.class)
     public DirectUploadService minioDirectUploadService(MinioClient minioClient,
             @Qualifier("presignMinioClient") MinioClient presignMinioClient,
-            StorageProperties properties) {
-        return new MinioDirectUploadService(minioClient, presignMinioClient, properties);
+            StorageProperties properties, StorageService storageService,
+            ObjectProvider<OrphanFileGuard> orphanFileGuardProvider,
+            OrphanCleanupProperties orphanCleanupProperties) {
+        return new MinioDirectUploadService(minioClient, presignMinioClient, properties, storageService,
+                orphanFileGuardProvider.getIfAvailable(), orphanCleanupProperties);
     }
 }

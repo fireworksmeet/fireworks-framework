@@ -7,13 +7,17 @@ import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.MatchMode;
 import com.aliyun.oss.model.PolicyConditions;
 import com.yzm.fireworks.storage.api.DirectUploadService;
+import com.yzm.fireworks.storage.api.StorageService;
 import com.yzm.fireworks.storage.api.UploadCredential;
 import com.yzm.fireworks.storage.api.UploadType;
 import com.yzm.fireworks.storage.core.AbstractStorageService;
 import com.yzm.fireworks.storage.core.StorageProperties;
 import com.yzm.fireworks.storage.core.StorageUrlUtils;
 import com.yzm.fireworks.storage.core.exception.StorageException;
+import com.yzm.fireworks.storage.core.orphan.OrphanCleanupProperties;
+import com.yzm.fireworks.storage.core.orphan.OrphanFileGuard;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -30,6 +34,10 @@ import java.util.Map;
  * 目录归一化逻辑统一复用 {@link AbstractStorageService#normalizeDir(String)}，
  * 与 {@code AliyunStorageService} / {@code MinioStorageService} 保持完全一致的 objectKey 规则
  * （不带前导斜杠、带末尾斜杠），避免直传上传的对象和普通上传的对象落在不同的“虚拟目录”下。
+ * <p>
+ * 签发凭证时，若孤儿清理能力已启用（存在 {@link OrphanFileGuard}）且配置
+ * {@code fireworks.storage.orphan-cleanup.auto-mark-pending=true}（默认），会自动登记待确认记录，
+ * 业务方无需手动调用 {@link OrphanFileGuard#pending}，避免漏写导致孤儿文件保护失效。
  */
 @Slf4j
 public class AliyunDirectUploadService extends AbstractStorageService implements DirectUploadService {
@@ -44,16 +52,36 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
     private static final String FORM_FIELD_SUCCESS_ACTION_STATUS = "success_action_status";
     private static final String FORM_FIELD_CALLBACK = "callback";
     private static final String SUCCESS_ACTION_STATUS_OK = "200";
-    /** OSS 会在上传时将该占位符替换为客户端提交的真实文件名。 */
-    private static final String FILENAME_PLACEHOLDER = "${filename}";
 
     private final OSS client;
     private final StorageProperties properties;
+    private final StorageService storageService;
+    /** 可为 null：孤儿清理依赖 Redis，未引入 Redis 时该 Bean 不存在，跳过自动登记。 */
+    @Nullable
+    private final OrphanFileGuard orphanFileGuard;
+    private final OrphanCleanupProperties orphanCleanupProperties;
 
-    public AliyunDirectUploadService(OSS client, StorageProperties properties) {
+    public AliyunDirectUploadService(OSS client, StorageProperties properties, StorageService storageService,
+                                     @Nullable OrphanFileGuard orphanFileGuard,
+                                     OrphanCleanupProperties orphanCleanupProperties) {
         this.client = client;
         this.properties = properties;
+        this.storageService = storageService;
+        this.orphanFileGuard = orphanFileGuard;
+        this.orphanCleanupProperties = orphanCleanupProperties;
     }
+
+    /**
+     * 凭证签发后，根据配置决定是否自动登记孤儿文件待确认记录。
+     */
+    private void markPendingIfAuto(String bucket, UploadCredential credential) {
+        if (orphanFileGuard == null || !orphanCleanupProperties.isEnabled() || !orphanCleanupProperties.isAutoMarkPending()
+                || credential == null || !StringUtils.hasText(credential.getObjectName())) {
+            return;
+        }
+        orphanFileGuard.pending(bucket, credential.getObjectName());
+    }
+
 
     @Override
     public UploadCredential getUploadCredential(String bucket, String objectName, Duration duration) {
@@ -74,22 +102,26 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
             urlStr = StorageUrlUtils.replaceHost(urlStr, StorageUrlUtils.buildBucketUrl(bucket, publicEndpoint, true));
         }
         log.info("获取阿里云直传凭证成功, bucket={}, object={}", bucket, objectName);
-        return UploadCredential.builder()
+        UploadCredential credential = UploadCredential.builder()
                 .type(UploadType.PRESIGNED_PUT)
                 .url(urlStr)
+                .objectName(objectName)
+                .displayUrl(storageService.getFileUrl(bucket, objectName))
                 .expiration(expiration.getTime())
                 .build();
+        markPendingIfAuto(bucket, credential);
+        return credential;
     }
 
     @Override
-    public UploadCredential getUploadCredentialByPostPolicy(String bucket, String dir, Duration duration) {
+    public UploadCredential getUploadCredentialByPostPolicy(String bucket, String objectName, Duration duration) {
         Assert.hasText(bucket, "bucket 不能为空");
+        Assert.hasText(objectName, "objectName 不能为空");
         Assert.notNull(duration, "duration 不能为空");
-        // 复用与 AliyunStorageService 完全一致的目录归一化规则：不带前导斜杠、带末尾斜杠。
-        String normalizedDir = normalizeDir(dir);
 
         Date expirationDate = new Date(System.currentTimeMillis() + duration.toMillis());
-        String postPolicy = generatePolicy(normalizedDir, expirationDate);
+        // 策略仅要求对象路径以 objectName 所在目录开头（objectName 本身一定满足该前缀）。
+        String postPolicy = generatePolicy(extractDirPrefix(objectName), expirationDate);
         String signature;
         try {
             signature = client.calculatePostSignature(postPolicy);
@@ -102,7 +134,9 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
         formData.put(FORM_FIELD_ACCESS_KEY_ID, properties.getAliyun().getAccessKey());
         formData.put(FORM_FIELD_SIGNATURE, signature);
         formData.put(FORM_FIELD_POLICY, encodedPolicy);
-        formData.put(FORM_FIELD_KEY, normalizedDir + FILENAME_PLACEHOLDER);
+        // 后端生成的完整 objectName 精确写入 key：OSS 收到请求后直接以该值作为存储路径，忽略前端文件原名，
+        // 彻底规避特殊字符/中文乱码/超长文件名与同名覆盖问题。
+        formData.put(FORM_FIELD_KEY, objectName);
         // 不设置该字段时 OSS 默认返回 204/301，浏览器端表单直传（如 XHR/Fetch 监听响应）通常需要明确的 200 响应。
         formData.put(FORM_FIELD_SUCCESS_ACTION_STATUS, SUCCESS_ACTION_STATUS_OK);
 
@@ -114,13 +148,18 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
                     + "前端需要自行在表单上传成功后再调用业务接口确认文件信息");
         }
 
-        log.info("获取阿里云表单直传凭证成功, bucket={}, dir={}", bucket, normalizedDir);
-        return UploadCredential.builder()
+        // objectName 与 displayUrl 在签发时即可 100% 确定，精确返回，前端无需任何替换。
+        log.info("获取阿里云表单直传凭证成功, bucket={}, object={}", bucket, objectName);
+        UploadCredential credential = UploadCredential.builder()
                 .type(UploadType.POST_POLICY)
                 .url(buildHost(bucket))
                 .formData(formData)
+                .objectName(objectName)
+                .displayUrl(storageService.getFileUrl(bucket, objectName))
                 .expiration(expirationDate.getTime())
                 .build();
+        markPendingIfAuto(bucket, credential);
+        return credential;
     }
 
     /**

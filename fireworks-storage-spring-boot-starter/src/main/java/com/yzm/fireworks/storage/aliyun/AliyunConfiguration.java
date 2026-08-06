@@ -5,6 +5,9 @@ import com.aliyun.oss.OSSClientBuilder;
 import com.yzm.fireworks.storage.api.DirectUploadService;
 import com.yzm.fireworks.storage.api.StorageService;
 import com.yzm.fireworks.storage.core.StorageProperties;
+import com.yzm.fireworks.storage.core.orphan.OrphanCleanupProperties;
+import com.yzm.fireworks.storage.core.orphan.OrphanFileGuard;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -39,7 +42,11 @@ public class AliyunConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(DirectUploadService.class)
-    public DirectUploadService aliyunDirectUploadService(OSS ossClient, StorageProperties properties) {
-        return new AliyunDirectUploadService(ossClient, properties);
+    public DirectUploadService aliyunDirectUploadService(OSS ossClient, StorageProperties properties,
+            StorageService storageService,
+            ObjectProvider<OrphanFileGuard> orphanFileGuardProvider,
+            OrphanCleanupProperties orphanCleanupProperties) {
+        return new AliyunDirectUploadService(ossClient, properties, storageService,
+                orphanFileGuardProvider.getIfAvailable(), orphanCleanupProperties);
     }
 }
