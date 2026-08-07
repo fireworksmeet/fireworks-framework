@@ -94,4 +94,4 @@ jobs:
           token: ${{ secrets.MAVEN_DEPLOY_TOKEN }} # ${{ secrets.GITHUB_TOKEN }} 这个默认没有权限
           repository: ${{ github.repository }}
           retain_days: 0          # 保留天数设置（设为 0 表示不按天数算，只按保留次数算）
-          keep_minimum_runs: 2    # 最少保留的构建记录次数（比如只保留最近 5 次）
+          keep_minimum_runs: 5    # 最少保留的构建记录次数（比如只保留最近 5 次，注意当前正在构建的还没有完成因此不算在内）
