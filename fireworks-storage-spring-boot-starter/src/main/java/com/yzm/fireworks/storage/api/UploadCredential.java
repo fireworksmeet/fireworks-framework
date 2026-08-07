@@ -47,11 +47,11 @@ public class UploadCredential {
     private String objectName;
 
     /**
-     * 前端上传成功后的完整回显 URL（带 CDN 域名的最终展示路径）
+     * 前端上传成功后的<b>临时</b>回显 URL（带签名、限时有效）。
      * <p>
-     * 与 {@link #objectName} 对应：预签名 PUT 直传返回完整地址；
-     * <p>
-     * 示例：https://img.yourdomain.com/temp/avatar/2026/08/03/c410df2e.jpg
+     * 仅供上传成功后立即回显使用，对私有 Bucket 同样可访问；<b>不作为业务落库地址</b>——
+     * 业务侧应以 {@link #objectName} 落库，后续需长期访问时再调用
+     * {@code StorageService#getFileUrl} 或 {@code StorageService#getPresignedUrl} 生成。
      */
     private String displayUrl;
 }

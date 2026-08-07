@@ -87,3 +87,11 @@ jobs:
             --no-transfer-progress \
             -DaltReleaseDeploymentRepository=github::default::${{ vars.GLOBAL_MAVEN_RELEASE_URL }} \
             -DaltSnapshotDeploymentRepository=github::default::${{ vars.GLOBAL_MAVEN_SNAPSHOT_URL }}
+
+      - name: 7. 删除历史工作流构建记录
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: 0          # 保留天数设置（设为 0 表示不按天数算，只按保留次数算）
+          keep_minimum_runs: 2    # 最少保留的构建记录次数（比如只保留最近 5 次）

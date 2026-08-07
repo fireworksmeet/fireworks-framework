@@ -20,10 +20,6 @@ fireworks:
       secret-key: xxxx
       secure: false
       auto-create-bucket: false   # MinIO 专属：上传时 Bucket 不存在则自动创建
-      imgproxy:                   # 可选，配置后 getFileUrl(bucket, objectName, ImageOptions) 才能在 MinIO 场景下生效
-        endpoint: http://imgproxy:8080
-        key:      # 十六进制签名密钥，需与 imgproxy 服务端 IMGPROXY_KEY 一致；留空则使用 insecure 模式（仅建议本地开发）
-        salt:     # 十六进制签名盐值，需与 imgproxy 服务端 IMGPROXY_SALT 一致
 
     aliyun:
       endpoint: oss-cn-shanghai.aliyuncs.com
@@ -55,17 +51,11 @@ private DirectUploadService directUploadService;
     - **Stream(InputStream) 上传**：Aliyun 使用最基础的简单上传（`putObject`），**单次硬上限 5GB**
       （OSS SDK 没有对 InputStream 的自动分片能力，断点续传依赖可重复读取的本地文件，流式数据不具备这个条件）；
       超过 5GB 的流请先落盘为本地文件再改用 File 上传。MinIO 的流式上传内部仍会自动分片，无此限制。
-  - `getFileUrl(bucket, objectName)`：原图/原文件的固定访问地址。
-  - `getFileUrl(bucket, objectName, ImageOptions options)`：薄封装的图片处理地址生成（按需实时处理，不会在存储端落盘生成额外文件）。
-    `options` 为 `null` 时等价于 `getFileUrl(bucket, objectName)`，返回原图地址；不为 `null` 时按 `ImageOptions` 中的
-    `width`、`height`、`format` 字段生成处理后的访问地址，三个字段可任意组合（只缩放、只转格式、或两者同时）：
-    - 只指定 `width` 或只指定 `height`：等比缩放，缺失的一边按原图宽高比自动计算，不裁剪。
-    - 同时指定 `width` 和 `height`：等比缩放后裁剪填充到目标宽高（旧版 `getThumbnailUrl` 的行为）。
-    - 指定 `format`：转换为目标格式，可与缩放任意组合，也可单独使用（原图尺寸不变，仅转格式）。
-    - Aliyun OSS：基于内置图片处理服务，拼接 `x-oss-process=image/...` 参数。
-    - MinIO：自身没有图片处理能力，需要额外部署 [imgproxy](https://imgproxy.net) 并配置
-      `fireworks.storage.minio.imgproxy`，该方法会生成 imgproxy 可识别的签名 URL，源图地址沿用 `getFileUrl` 的拼接规则。
-      未配置 `imgproxy` 时传入非空 `options` 调用会抛出异常，请确认已部署并正确配置。
+  - `getFileUrl(bucket, objectName)`：文件的固定访问地址（原图/原文件）。本框架**只输出原图地址**，
+    不提供任何图片缩放/格式转换的生成方法。图片处理（缩略图等）遵循"后端只存原图、前端/网关按需处理"的
+    云原生解耦原则：前端拿到原图地址后，如需缩略图，直接在 URL 上拼接处理参数由网关/云存储实时处理
+    （如阿里云 OSS 的 `?x-oss-process=image/resize,...`、MinIO 前端的 imgproxy），后端业务无需感知。
+    相关图片处理 API（`ImageOptions`、`ImageFormat`、imgproxy 签名构建）已从本模块移除。
 
 - `DirectUploadService`：
   - `getUploadCredential`：预签名 PUT 直传凭证，前端直接 PUT 整个文件。

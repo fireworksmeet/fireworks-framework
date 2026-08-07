@@ -99,7 +99,10 @@ public class MinioDirectUploadService extends AbstractStorageService implements 
                     .type(UploadType.PRESIGNED_PUT)
                     .url(url)
                     .objectName(objectName)
-                    .displayUrl(storageService.getFileUrl(bucket, objectName))
+                    // displayUrl 仅用于上传成功后的立即回显，业务落库用 objectName，故用临时签名地址更通用
+                    // （对私有 Bucket 也能访问）。时效独立于上传凭证，使用 displayUrlTtl（默认 24h），
+                    // 以覆盖"用户上传后继续填写其他表单信息"的整段过程。
+                    .displayUrl(storageService.getPresignedUrl(bucket, objectName, properties.getDisplayUrlTtl()))
                     .expiration(System.currentTimeMillis() + duration.toMillis())
                     .build();
             markPendingIfAuto(bucket, credential);
@@ -139,7 +142,7 @@ public class MinioDirectUploadService extends AbstractStorageService implements 
                     .url(url)
                     .formData(formData)
                     .objectName(objectName)
-                    .displayUrl(storageService.getFileUrl(bucket, objectName))
+                    .displayUrl(storageService.getPresignedUrl(bucket, objectName, properties.getDisplayUrlTtl()))
                     .expiration(expiration.toInstant().toEpochMilli())
                     .build();
             markPendingIfAuto(bucket, credential);

@@ -1,6 +1,5 @@
 package com.yzm.fireworks.storage.minio;
 
-import com.yzm.fireworks.storage.api.ImageOptions;
 import com.yzm.fireworks.storage.api.StorageFile;
 import com.yzm.fireworks.storage.api.StorageService;
 import com.yzm.fireworks.storage.core.AbstractStorageService;
@@ -195,23 +194,6 @@ public class MinioStorageService extends AbstractStorageService implements Stora
         } catch (Exception e) {
             throw new StorageException("获取预签名URL失败: bucket=" + bucket + ", object=" + objectName, e);
         }
-    }
-
-    @Override
-    public String getFileUrl(String bucket, String objectName, ImageOptions options) {
-        if (options == null) {
-            return getFileUrl(bucket, objectName);
-        }
-        options.validate();
-        StorageProperties.Minio.Imgproxy imgproxy = minioProperties.getImgproxy();
-        Assert.notNull(imgproxy, "未配置 fireworks.storage.minio.imgproxy，无法生成图片处理地址");
-        Assert.hasText(imgproxy.getEndpoint(), "fireworks.storage.minio.imgproxy.endpoint 不能为空");
-        // MinIO 自身没有图片处理能力，缩放/格式转换由部署在 MinIO 前面的 imgproxy 按需生成；
-        // 这里只是构建一个 imgproxy 能识别的签名 URL，源图地址沿用 getFileUrl 的拼接规则，
-        // 因此该地址必须是 imgproxy 能直接发起 HTTP 请求访问到的地址（公网可达或与 imgproxy 内网互通）。
-        String sourceUrl = getFileUrl(bucket, objectName);
-        return ImgproxyUrlBuilder.buildImageUrl(
-                imgproxy.getEndpoint(), imgproxy.getPrefix(), imgproxy.getKey(), imgproxy.getSalt(), sourceUrl, options);
     }
 
     /**

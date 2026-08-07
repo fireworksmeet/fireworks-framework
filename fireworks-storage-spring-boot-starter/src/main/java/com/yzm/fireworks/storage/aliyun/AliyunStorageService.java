@@ -4,7 +4,6 @@ import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.internal.Mimetypes;
 import com.aliyun.oss.model.*;
-import com.yzm.fireworks.storage.api.ImageOptions;
 import com.yzm.fireworks.storage.api.StorageFile;
 import com.yzm.fireworks.storage.api.StorageService;
 import com.yzm.fireworks.storage.core.AbstractStorageService;
@@ -21,7 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -166,51 +164,6 @@ public class AliyunStorageService extends AbstractStorageService implements Stor
             urlStr = StorageUrlUtils.replaceHost(urlStr, StorageUrlUtils.buildBucketUrl(bucket, publicEndpoint, true));
         }
         return urlStr;
-    }
-
-    @Override
-    public String getFileUrl(String bucket, String objectName, ImageOptions options) {
-        if (options == null) {
-            return getFileUrl(bucket, objectName);
-        }
-        options.validate();
-        String baseUrl = getFileUrl(bucket, objectName);
-        String separator = baseUrl.contains(QUESTION_MARK) ? AMPERSAND : QUESTION_MARK;
-        return baseUrl + separator + "x-oss-process=image/" + buildImageProcess(options);
-    }
-
-    /**
-     * 按 {@link ImageOptions} 中携带的字段拼接 OSS 图片处理参数，resize/format 各自独立、可任意组合：
-     * <ul>
-     *     <li>宽高都指定：{@code resize,m_fill,w_W,h_H} 等比缩放后裁剪填充到目标宽高
-     *     （与旧版 {@code getThumbnailUrl} 行为一致）。</li>
-     *     <li>只指定宽或高其中一边：{@code resize,w_W} / {@code resize,h_H}，OSS 默认按 lfit 模式
-     *     等比缩放，不会裁剪图片内容。</li>
-     *     <li>指定了 format：追加 {@code format,<ext>}，可与上面任意 resize 结果组合，也可单独使用
-     *     （只转格式不改尺寸）。</li>
-     * </ul>
-     */
-    private String buildImageProcess(ImageOptions options) {
-        List<String> segments = new ArrayList<>();
-        if (options.hasResize()) {
-            segments.add(buildResizeSegment(options));
-        }
-        if (options.hasFormat()) {
-            segments.add("format," + options.getFormat().getExtension());
-        }
-        return String.join(SLASH, segments);
-    }
-
-    private String buildResizeSegment(ImageOptions options) {
-        Integer width = options.getWidth();
-        Integer height = options.getHeight();
-        if (width != null && height != null) {
-            return "resize,m_fill,w_" + width + ",h_" + height;
-        }
-        if (width != null) {
-            return "resize,w_" + width;
-        }
-        return "resize,h_" + height;
     }
 
     private ObjectMetadata buildContentDispositionMetadata(String fileName) {
