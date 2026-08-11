@@ -52,7 +52,7 @@ public class StorageProperties {
     private Duration displayUrlTtl = Duration.ofHours(24);
 
     /**
-     * 公开访问的终端地址，设置后 getFileUrl() 返回此地址 + "/" + bucket + "/" + objectName。
+     * 公开访问的终端地址，设置后 getFileUrl() 返回此地址 + "/" + bucket + "/" + objectKey。
      * 适用于 CDN 或自定义域名场景，不配置时自动从 endpoint 拼接。
      * 示例：https://cdn.xxx.com
      */

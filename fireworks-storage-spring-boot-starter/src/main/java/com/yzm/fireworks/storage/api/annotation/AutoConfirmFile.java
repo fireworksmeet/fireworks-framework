@@ -14,28 +14,28 @@ import java.lang.annotation.Target;
  * <p>
  * 适用场景：表单保存（如用户资料、商品、评论）时，前端直传完成后把文件对象名作为
  * {@code String}（或 {@code List<String>}）传给后端持久化到业务表。标注本注解后，框架会从<b>方法参数</b>
- * 中按 {@link #objectName()} 指定的 SpEL 表达式精确提取这些对象名，在<b>事务提交之后</b>自动确认，
+ * 中按 {@link #objectKey()} 指定的 SpEL 表达式精确提取这些对象名，在<b>事务提交之后</b>自动确认，
  * 从根本上避免业务开发漏写 {@code confirm} 导致已正常使用的文件被误判为孤儿而清理。
  * <p>
  * 用法示例：
  * <pre>{@code
  * // 单个文件对象名在入参 DTO 上（最常见）
- * @AutoConfirmFile(objectName = "#userForm.avatarPath")
+ * @AutoConfirmFile(objectKey = "#userForm.avatarPath")
  * public User save(UserForm userForm) { ... }
  *
  * // 批量：一组文件对象名（List<String>）
- * @AutoConfirmFile(objectName = "#args[0]")
+ * @AutoConfirmFile(objectKey = "#args[0]")
  * public void savePics(List<String> picUrls) { ... }
  *
  * // 显式指定桶名（SpEL 或回退到配置 default-bucket）
- * @AutoConfirmFile(bucket = "#userForm.bucket", objectName = "#userForm.avatarPath")
+ * @AutoConfirmFile(bucket = "#userForm.bucket", objectKey = "#userForm.avatarPath")
  * public void save(UserForm form) { ... }
  * }</pre>
  * <p>
  * SpEL 变量：方法参数名（如 {@code #userForm}）、{@code #args}（参数数组，按 {@code #args[0]} 位置访问）、
  * 以及 {@code #p0}/{@code #a0} 等索引别名。文件路径统一通过参数获取，不解析方法返回值。
  * <p>
- * 说明：{@link #objectName()} 为必填，用 SpEL 精确定位文件路径，避免盲目扫描造成误确认。
+ * 说明：{@link #objectKey()} 为必填，用 SpEL 精确定位文件路径，避免盲目扫描造成误确认。
  * SpEL 解析结果需为 {@code String} 或 {@code String} 的集合/数组，框架会展开为待确认记录并批量确认。
  * <p>
  * 事务行为：自动感知事务。方法在事务中时，等事务提交（{@code afterCommit}）后确认，保证事务回滚时不误确认；
@@ -58,5 +58,5 @@ public @interface AutoConfirmFile {
      * 例如参数名 {@code "#userForm.avatarPath"}、位置访问 {@code "#args[0]"}。
      * 解析结果需为 {@code String} 或 {@code String} 的集合/数组。
      */
-    String objectName() default "";
+    String objectKey() default "";
 }

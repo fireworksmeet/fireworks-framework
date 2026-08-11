@@ -85,11 +85,11 @@ public class AutoConfirmFileInterceptor implements MethodInterceptor, BeanFactor
         for (PendingFile file : AutoConfirmFileSupport.resolve(attribute, method, args, result, beanFactory)) {
             String bucket = StringUtils.hasText(file.getBucket()) ? file.getBucket() : properties.getDefaultBucket();
             if (!StringUtils.hasText(bucket)) {
-                log.warn("@AutoConfirmFile 无法确定桶名, 跳过确认, objectName={}。请在注解配置 bucket 或设置 "
-                        + "fireworks.storage.orphan-cleanup.default-bucket", file.getObjectName());
+                log.warn("@AutoConfirmFile 无法确定桶名, 跳过确认, objectKey={}。请在注解配置 bucket 或设置 "
+                        + "fireworks.storage.orphan-cleanup.default-bucket", file.getObjectKey());
                 continue;
             }
-            if (StringUtils.hasText(file.getObjectName())) {
+            if (StringUtils.hasText(file.getObjectKey())) {
                 file.setBucket(bucket);
                 files.add(file);
             }

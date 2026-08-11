@@ -16,9 +16,9 @@ public class UploadCredential {
     private UploadType type;
 
     /**
-     * 直传目标 URL (例如 MinIO/OSS 的预签名 PUT URL，或 POST 表单提交的目标地址)
+     * 直传目标地址（例如 MinIO/OSS 的预签名 PUT URL，或 POST 表单提交的目标地址）
      */
-    private String url;
+    private String uploadUrl;
 
     /**
      * 直传时前端需要携带的额外请求头（如某些 Provider 的预签名 URL 要求携带特定 Header）。
@@ -44,13 +44,13 @@ public class UploadCredential {
      * <p>
      * 示例：temp/avatar/2026/08/03/c410df2e.jpg
      */
-    private String objectName;
+    private String objectKey;
 
     /**
      * 前端上传成功后的<b>临时</b>回显 URL（带签名、限时有效）。
      * <p>
      * 仅供上传成功后立即回显使用，对私有 Bucket 同样可访问；<b>不作为业务落库地址</b>——
-     * 业务侧应以 {@link #objectName} 落库，后续需长期访问时再调用
+     * 业务侧应以 {@link #objectKey} 落库，后续需长期访问时再调用
      * {@code StorageService#getFileUrl} 或 {@code StorageService#getPresignedUrl} 生成。
      */
     private String displayUrl;

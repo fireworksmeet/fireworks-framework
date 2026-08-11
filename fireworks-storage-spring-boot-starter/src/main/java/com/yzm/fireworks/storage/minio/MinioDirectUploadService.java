@@ -6,7 +6,7 @@ import com.yzm.fireworks.storage.api.UploadCredential;
 import com.yzm.fireworks.storage.api.UploadType;
 import com.yzm.fireworks.storage.core.AbstractStorageService;
 import com.yzm.fireworks.storage.core.StorageProperties;
-import com.yzm.fireworks.storage.core.StorageUrlUtils;
+import com.yzm.fireworks.storage.core.StorageUrlUtil;
 import com.yzm.fireworks.storage.core.exception.StorageException;
 import com.yzm.fireworks.storage.core.orphan.OrphanCleanupProperties;
 import com.yzm.fireworks.storage.core.orphan.OrphanFileGuard;
@@ -25,7 +25,6 @@ import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static com.yzm.fireworks.common.constants.StringPool.EMPTY;
 import static com.yzm.fireworks.common.constants.StringPool.SLASH;
 
 
@@ -73,17 +72,17 @@ public class MinioDirectUploadService extends AbstractStorageService implements 
      */
     private void markPendingIfAuto(String bucket, UploadCredential credential) {
         if (orphanFileGuard == null || !orphanCleanupProperties.isEnabled() || !orphanCleanupProperties.isAutoMarkPending()
-                || credential == null || !StringUtils.hasText(credential.getObjectName())) {
+                || credential == null || !StringUtils.hasText(credential.getObjectKey())) {
             return;
         }
-        orphanFileGuard.pending(bucket, credential.getObjectName());
+        orphanFileGuard.pending(bucket, credential.getObjectKey());
     }
 
 
     @Override
-    public UploadCredential getUploadCredential(String bucket, String objectName, Duration duration) {
+    public UploadCredential getUploadCredential(String bucket, String objectKey, Duration duration) {
         Assert.hasText(bucket, "bucket 不能为空");
-        Assert.hasText(objectName, "objectName 不能为空");
+        Assert.hasText(objectKey, "objectKey 不能为空");
         Assert.notNull(duration, "duration 不能为空");
         try {
             // SigV4 签名将 Host 纳入签名范围，必须用 presignClient（公网 endpoint 构建）生成预签名 URL。
@@ -91,64 +90,64 @@ public class MinioDirectUploadService extends AbstractStorageService implements 
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.PUT)
                             .bucket(bucket)
-                            .object(objectName)
+                            .object(objectKey)
                             .expiry((int) duration.toSeconds(), TimeUnit.SECONDS)
                             .build());
-            log.info("获取 MinIO 直传凭证成功, bucket={}, object={}", bucket, objectName);
+            log.info("获取 MinIO 直传凭证成功, bucket={}, object={}", bucket, objectKey);
             UploadCredential credential = UploadCredential.builder()
                     .type(UploadType.PRESIGNED_PUT)
-                    .url(url)
-                    .objectName(objectName)
-                    // displayUrl 仅用于上传成功后的立即回显，业务落库用 objectName，故用临时签名地址更通用
+                    .uploadUrl(url)
+                    .objectKey(objectKey)
+                    // displayUrl 仅用于上传成功后的立即回显，业务落库用 objectKey，故用临时签名地址更通用
                     // （对私有 Bucket 也能访问）。时效独立于上传凭证，使用 displayUrlTtl（默认 24h），
                     // 以覆盖"用户上传后继续填写其他表单信息"的整段过程。
-                    .displayUrl(storageService.getPresignedUrl(bucket, objectName, properties.getDisplayUrlTtl()))
+                    .displayUrl(storageService.getPresignedUrl(bucket, objectKey, properties.getDisplayUrlTtl()))
                     .expiration(System.currentTimeMillis() + duration.toMillis())
                     .build();
             markPendingIfAuto(bucket, credential);
             return credential;
         } catch (Exception e) {
-            throw new StorageException("获取 MinIO 直传凭证失败: bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("获取 MinIO 直传凭证失败: bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 
     @Override
-    public UploadCredential getUploadCredentialByPostPolicy(String bucket, String objectName, Duration duration) {
+    public UploadCredential getUploadCredentialByPostPolicy(String bucket, String objectKey, Duration duration) {
         Assert.hasText(bucket, "bucket 不能为空");
-        Assert.hasText(objectName, "objectName 不能为空");
+        Assert.hasText(objectKey, "objectKey 不能为空");
         Assert.notNull(duration, "duration 不能为空");
         ZonedDateTime expiration = ZonedDateTime.now(ZoneId.systemDefault()).plus(duration);
         try {
             PostPolicy postPolicy = new PostPolicy(bucket, expiration);
-            // 策略仅要求对象路径以 objectName 所在目录开头（objectName 本身一定满足该前缀）。
-            postPolicy.addStartsWithCondition(FORM_FIELD_KEY, extractDirPrefix(objectName));
+            // 策略仅要求对象路径以 objectKey 所在目录开头（objectKey 本身一定满足该前缀）。
+            postPolicy.addStartsWithCondition(FORM_FIELD_KEY, extractDirPrefix(objectKey));
             postPolicy.addContentLengthRangeCondition(0, properties.getDirectUploadMaxSize());
 
             Map<String, String> formData = client.getPresignedPostFormData(postPolicy);
-            // 后端生成的完整 objectName 精确写入 key：OSS/S3 收到请求后直接以该值作为存储路径，
+            // 后端生成的完整 objectKey 精确写入 key：OSS/S3 收到请求后直接以该值作为存储路径，
             // 忽略前端文件原名，彻底规避特殊字符/中文乱码/超长文件名与同名覆盖问题。
-            formData.put(FORM_FIELD_KEY, objectName);
+            formData.put(FORM_FIELD_KEY, objectKey);
 
             // PostPolicy 签名只覆盖 policy 文档本身，不覆盖上传目标 URL，
             // 因此直接用 publicEndpoint 替换 host 是安全的，签名照样有效。
             String baseEndpoint = StringUtils.hasText(properties.getPublicEndpoint())
                     ? properties.getPublicEndpoint()
-                    : StorageUrlUtils.buildEndpointUrl(minioProperties.getEndpoint(), minioProperties.isSecure());
+                    : StorageUrlUtil.buildEndpointUrl(minioProperties.getEndpoint(), minioProperties.isSecure());
             String url = (baseEndpoint.endsWith(SLASH) ? baseEndpoint : baseEndpoint + SLASH) + bucket;
-            // objectName 与 displayUrl 在签发时即可 100% 确定，精确返回，前端无需任何替换。
-            log.info("获取 MinIO 表单直传凭证成功, bucket={}, object={}", bucket, objectName);
+            // objectKey 与 displayUrl 在签发时即可 100% 确定，精确返回，前端无需任何替换。
+            log.info("获取 MinIO 表单直传凭证成功, bucket={}, object={}", bucket, objectKey);
             UploadCredential credential = UploadCredential.builder()
                     .type(UploadType.POST_POLICY)
-                    .url(url)
+                    .uploadUrl(url)
                     .formData(formData)
-                    .objectName(objectName)
-                    .displayUrl(storageService.getPresignedUrl(bucket, objectName, properties.getDisplayUrlTtl()))
+                    .objectKey(objectKey)
+                    .displayUrl(storageService.getPresignedUrl(bucket, objectKey, properties.getDisplayUrlTtl()))
                     .expiration(expiration.toInstant().toEpochMilli())
                     .build();
             markPendingIfAuto(bucket, credential);
             return credential;
         } catch (Exception e) {
-            throw new StorageException("获取 MinIO 表单直传凭证失败: bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("获取 MinIO 表单直传凭证失败: bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 

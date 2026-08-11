@@ -19,7 +19,7 @@ public class AutoConfirmFileAttribute {
     /**
      * 对象名 SpEL 表达式字符串（可为空）。
      */
-    private final String objectName;
+    private final String objectKey;
 
     /**
      * 预解析后的桶名 SpEL Expression 实例（可为 null）。
@@ -29,6 +29,6 @@ public class AutoConfirmFileAttribute {
     /**
      * 预解析后的对象名 SpEL Expression 实例（可为 null）。
      */
-    private final Expression objectNameExpression;
+    private final Expression objectKeyExpression;
 }
 

@@ -21,27 +21,27 @@ public interface PendingFileRegistry {
      * 登记一条待确认记录，生效时长为 {@code ttl}。
      *
      * @param bucket     桶名
-     * @param objectName 对象完整路径
+     * @param objectKey 对象完整路径
      * @param ttl        期望确认的时长，超过该时长未确认则视为孤儿；为 null 时使用清理器默认 TTL
      */
-    void markPending(String bucket, String objectName, Duration ttl);
+    void markPending(String bucket, String objectKey, Duration ttl);
 
     /**
      * 确认某条记录对应的文件已被业务正常使用，不再视为孤儿。
      * 记录不存在时静默忽略，不抛异常。
      *
      * @param bucket     桶名
-     * @param objectName 对象完整路径
+     * @param objectKey 对象完整路径
      */
-    void confirm(String bucket, String objectName);
+    void confirm(String bucket, String objectKey);
 
     /**
      * 批量确认同一桶下的多个文件。
      *
      * @param bucket      桶名
-     * @param objectNames 对象完整路径列表
+     * @param objectKeys 对象完整路径列表
      */
-    void confirm(String bucket, List<String> objectNames);
+    void confirm(String bucket, List<String> objectKeys);
 
     /**
      * 批量确认包含不同桶的多条待确认文件记录。
@@ -66,16 +66,16 @@ public interface PendingFileRegistry {
      * 移除一条记录。文件已被确认或已被清理后调用。
      *
      * @param bucket     桶名
-     * @param objectName 对象完整路径
+     * @param objectKey 对象完整路径
      */
-    void remove(String bucket, String objectName);
+    void remove(String bucket, String objectKey);
 
     /**
      * 批量移除多条记录。文件已被确认或已被清理后调用。
      *
      * @param bucket      桶名
-     * @param objectNames 对象完整路径列表
+     * @param objectKeys 对象完整路径列表
      */
-    void removeAll(String bucket, List<String> objectNames);
+    void removeAll(String bucket, List<String> objectKeys);
 }
 

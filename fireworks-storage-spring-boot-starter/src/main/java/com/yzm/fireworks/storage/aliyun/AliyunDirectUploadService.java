@@ -12,7 +12,7 @@ import com.yzm.fireworks.storage.api.UploadCredential;
 import com.yzm.fireworks.storage.api.UploadType;
 import com.yzm.fireworks.storage.core.AbstractStorageService;
 import com.yzm.fireworks.storage.core.StorageProperties;
-import com.yzm.fireworks.storage.core.StorageUrlUtils;
+import com.yzm.fireworks.storage.core.StorageUrlUtil;
 import com.yzm.fireworks.storage.core.exception.StorageException;
 import com.yzm.fireworks.storage.core.orphan.OrphanCleanupProperties;
 import com.yzm.fireworks.storage.core.orphan.OrphanFileGuard;
@@ -76,40 +76,40 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
      */
     private void markPendingIfAuto(String bucket, UploadCredential credential) {
         if (orphanFileGuard == null || !orphanCleanupProperties.isEnabled() || !orphanCleanupProperties.isAutoMarkPending()
-                || credential == null || !StringUtils.hasText(credential.getObjectName())) {
+                || credential == null || !StringUtils.hasText(credential.getObjectKey())) {
             return;
         }
-        orphanFileGuard.pending(bucket, credential.getObjectName());
+        orphanFileGuard.pending(bucket, credential.getObjectKey());
     }
 
 
     @Override
-    public UploadCredential getUploadCredential(String bucket, String objectName, Duration duration) {
+    public UploadCredential getUploadCredential(String bucket, String objectKey, Duration duration) {
         Assert.hasText(bucket, "bucket 不能为空");
-        Assert.hasText(objectName, "objectName 不能为空");
+        Assert.hasText(objectKey, "objectKey 不能为空");
         Assert.notNull(duration, "duration 不能为空");
         Date expiration = new Date(System.currentTimeMillis() + duration.toMillis());
         // 注意：参数版 generatePresignedUrl(bucket, key, expiration) 默认生成的是 GET 方法的预签名 URL
         // （等价于 getPresignedUrl，用于下载），并不是用于直传的 PUT 签名。这里必须通过
         // GeneratePresignedUrlRequest 显式指定 HttpMethod.PUT，否则生成的凭证根本无法用于上传。
-        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, objectName, HttpMethod.PUT);
+        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, objectKey, HttpMethod.PUT);
         request.setExpiration(expiration);
         URL url = client.generatePresignedUrl(request);
         // OSS V1 签名不含 Host，签名后替换为公网地址安全有效。
         String urlStr = url.toString();
         String publicEndpoint = properties.getPublicEndpoint();
         if (StringUtils.hasText(publicEndpoint)) {
-            urlStr = StorageUrlUtils.replaceHost(urlStr, StorageUrlUtils.buildBucketUrl(bucket, publicEndpoint, true));
+            urlStr = StorageUrlUtil.replaceHost(urlStr, StorageUrlUtil.buildBucketUrl(bucket, publicEndpoint, true));
         }
-        log.info("获取阿里云直传凭证成功, bucket={}, object={}", bucket, objectName);
+        log.info("获取阿里云直传凭证成功, bucket={}, object={}", bucket, objectKey);
         UploadCredential credential = UploadCredential.builder()
                 .type(UploadType.PRESIGNED_PUT)
-                .url(urlStr)
-                .objectName(objectName)
-                // displayUrl 仅用于上传成功后的立即回显，业务落库用 objectName，故用临时签名地址更通用
+                .uploadUrl(urlStr)
+                .objectKey(objectKey)
+                // displayUrl 仅用于上传成功后的立即回显，业务落库用 objectKey，故用临时签名地址更通用
                 // （对私有 Bucket 也能访问）。时效独立于上传凭证，使用 displayUrlTtl（默认 24h），
                 // 以覆盖"用户上传后继续填写其他表单信息"的整段过程。
-                .displayUrl(storageService.getPresignedUrl(bucket, objectName, properties.getDisplayUrlTtl()))
+                .displayUrl(storageService.getPresignedUrl(bucket, objectKey, properties.getDisplayUrlTtl()))
                 .expiration(expiration.getTime())
                 .build();
         markPendingIfAuto(bucket, credential);
@@ -117,14 +117,14 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
     }
 
     @Override
-    public UploadCredential getUploadCredentialByPostPolicy(String bucket, String objectName, Duration duration) {
+    public UploadCredential getUploadCredentialByPostPolicy(String bucket, String objectKey, Duration duration) {
         Assert.hasText(bucket, "bucket 不能为空");
-        Assert.hasText(objectName, "objectName 不能为空");
+        Assert.hasText(objectKey, "objectKey 不能为空");
         Assert.notNull(duration, "duration 不能为空");
 
         Date expirationDate = new Date(System.currentTimeMillis() + duration.toMillis());
-        // 策略仅要求对象路径以 objectName 所在目录开头（objectName 本身一定满足该前缀）。
-        String postPolicy = generatePolicy(extractDirPrefix(objectName), expirationDate);
+        // 策略仅要求对象路径以 objectKey 所在目录开头（objectKey 本身一定满足该前缀）。
+        String postPolicy = generatePolicy(extractDirPrefix(objectKey), expirationDate);
         String signature;
         try {
             signature = client.calculatePostSignature(postPolicy);
@@ -137,9 +137,9 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
         formData.put(FORM_FIELD_ACCESS_KEY_ID, properties.getAliyun().getAccessKey());
         formData.put(FORM_FIELD_SIGNATURE, signature);
         formData.put(FORM_FIELD_POLICY, encodedPolicy);
-        // 后端生成的完整 objectName 精确写入 key：OSS 收到请求后直接以该值作为存储路径，忽略前端文件原名，
+        // 后端生成的完整 objectKey 精确写入 key：OSS 收到请求后直接以该值作为存储路径，忽略前端文件原名，
         // 彻底规避特殊字符/中文乱码/超长文件名与同名覆盖问题。
-        formData.put(FORM_FIELD_KEY, objectName);
+        formData.put(FORM_FIELD_KEY, objectKey);
         // 不设置该字段时 OSS 默认返回 204/301，浏览器端表单直传（如 XHR/Fetch 监听响应）通常需要明确的 200 响应。
         formData.put(FORM_FIELD_SUCCESS_ACTION_STATUS, SUCCESS_ACTION_STATUS_OK);
 
@@ -151,14 +151,14 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
                     + "前端需要自行在表单上传成功后再调用业务接口确认文件信息");
         }
 
-        // objectName 与 displayUrl 在签发时即可 100% 确定，精确返回，前端无需任何替换。
-        log.info("获取阿里云表单直传凭证成功, bucket={}, object={}", bucket, objectName);
+        // objectKey 与 displayUrl 在签发时即可 100% 确定，精确返回，前端无需任何替换。
+        log.info("获取阿里云表单直传凭证成功, bucket={}, object={}", bucket, objectKey);
         UploadCredential credential = UploadCredential.builder()
                 .type(UploadType.POST_POLICY)
-                .url(buildHost(bucket))
+                .uploadUrl(buildHost(bucket))
                 .formData(formData)
-                .objectName(objectName)
-                .displayUrl(storageService.getPresignedUrl(bucket, objectName, properties.getDisplayUrlTtl()))
+                .objectKey(objectKey)
+                .displayUrl(storageService.getPresignedUrl(bucket, objectKey, properties.getDisplayUrlTtl()))
                 .expiration(expirationDate.getTime())
                 .build();
         markPendingIfAuto(bucket, credential);
@@ -193,6 +193,6 @@ public class AliyunDirectUploadService extends AbstractStorageService implements
         String endpoint = StringUtils.hasText(publicEndpoint)
                 ? publicEndpoint
                 : properties.getAliyun().getEndpoint();
-        return StorageUrlUtils.buildBucketUrl(bucketName, endpoint, true);
+        return StorageUrlUtil.buildBucketUrl(bucketName, endpoint, true);
     }
 }

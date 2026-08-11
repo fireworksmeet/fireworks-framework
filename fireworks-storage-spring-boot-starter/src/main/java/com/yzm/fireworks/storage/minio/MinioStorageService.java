@@ -1,10 +1,11 @@
 package com.yzm.fireworks.storage.minio;
 
+import com.yzm.fireworks.storage.api.ObjectKeyUtil;
 import com.yzm.fireworks.storage.api.StorageFile;
 import com.yzm.fireworks.storage.api.StorageService;
 import com.yzm.fireworks.storage.core.AbstractStorageService;
 import com.yzm.fireworks.storage.core.StorageProperties;
-import com.yzm.fireworks.storage.core.StorageUrlUtils;
+import com.yzm.fireworks.storage.core.StorageUrlUtil;
 import com.yzm.fireworks.storage.core.exception.StorageException;
 import io.minio.*;
 import io.minio.http.Method;
@@ -58,21 +59,21 @@ public class MinioStorageService extends AbstractStorageService implements Stora
         Assert.notNull(file, "file 不能为空");
         Assert.isTrue(file.isFile(), () -> "文件不存在或不是合法文件: " + file.getAbsolutePath());
 
-        String objectName = buildObjectName(dir, file.getName());
+        String objectKey = ObjectKeyUtil.buildObjectKey(dir, file.getName());
         ensureBucketExists(bucket);
         try {
             ObjectWriteResponse response = client.uploadObject(
                     UploadObjectArgs.builder()
                             .bucket(bucket)
-                            .object(objectName)
+                            .object(objectKey)
                             .filename(file.getAbsolutePath())
                             .headers(buildContentDispositionHeaders(file.getName()))
                             .build());
-            log.info("文件上传成功, bucket={}, object={}, size={}, etag={}", bucket, objectName, file.length(), response.etag());
-            return buildStorageFile(bucket, objectName, file.getName(), getFileUrl(bucket, objectName),
+            log.info("文件上传成功, bucket={}, object={}, size={}, etag={}", bucket, objectKey, file.length(), response.etag());
+            return buildStorageFile(bucket, objectKey, file.getName(), getFileUrl(bucket, objectKey),
                     file.length(), null, response.etag());
         } catch (Exception e) {
-            throw new StorageException("文件上传失败: bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("文件上传失败: bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 
@@ -87,13 +88,13 @@ public class MinioStorageService extends AbstractStorageService implements Stora
         Assert.hasText(fileName, "fileName 不能为空");
         Assert.notNull(inputStream, "inputStream 不能为空");
 
-        String objectName = buildObjectName(dir, fileName);
+        String objectKey = ObjectKeyUtil.buildObjectKey(dir, fileName);
         ensureBucketExists(bucket);
         // 显式关闭传入的 InputStream：之前的实现依赖调用方自行关闭，容易造成连接/文件句柄泄漏。
         try (InputStream in = inputStream) {
             PutObjectArgs.Builder builder = PutObjectArgs.builder()
                     .bucket(bucket)
-                    .object(objectName)
+                    .object(objectKey)
                     // 显式传入统一配置的 partSize，行为与 Aliyun 实现的分片大小语义保持一致，
                     // 而不是依赖 MinIO SDK 内部的默认分片策略（-1 表示由 SDK 自行决定）。
                     .stream(in, contentLength, resolvePartSize())
@@ -102,43 +103,43 @@ public class MinioStorageService extends AbstractStorageService implements Stora
                 builder.contentType(contentType);
             }
             ObjectWriteResponse response = client.putObject(builder.build());
-            log.info("文件流式上传成功, bucket={}, object={}, size={}, etag={}", bucket, objectName, contentLength, response.etag());
-            return buildStorageFile(bucket, objectName, fileName, getFileUrl(bucket, objectName),
+            log.info("文件流式上传成功, bucket={}, object={}, size={}, etag={}", bucket, objectKey, contentLength, response.etag());
+            return buildStorageFile(bucket, objectKey, fileName, getFileUrl(bucket, objectKey),
                     contentLength, contentType, response.etag());
         } catch (IOException e) {
-            throw new StorageException("关闭文件输入流失败, object=" + objectName, e);
+            throw new StorageException("关闭文件输入流失败, object=" + objectKey, e);
         } catch (Exception e) {
-            throw new StorageException("文件流式上传失败: bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("文件流式上传失败: bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 
     @Override
-    public void deleteFile(String bucket, String objectName) {
+    public void deleteFile(String bucket, String objectKey) {
         Assert.hasText(bucket, "bucket 不能为空");
-        Assert.hasText(objectName, "objectName 不能为空");
+        Assert.hasText(objectKey, "objectKey 不能为空");
         try {
             client.removeObject(
                     RemoveObjectArgs.builder()
                             .bucket(bucket)
-                            .object(objectName)
+                            .object(objectKey)
                             .build());
-            log.info("文件删除成功, bucket={}, object={}", bucket, objectName);
+            log.info("文件删除成功, bucket={}, object={}", bucket, objectKey);
         } catch (Exception e) {
-            throw new StorageException("删除文件失败: bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("删除文件失败: bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 
     @Override
-    public void deleteFile(String bucket, List<String> objectNames) {
+    public void deleteFile(String bucket, List<String> objectKeys) {
         Assert.hasText(bucket, "bucket 不能为空");
-        if (CollectionUtils.isEmpty(objectNames)) {
-            log.warn("deleteFile 批量删除时 objectNames 为空，跳过操作, bucket={}", bucket);
+        if (CollectionUtils.isEmpty(objectKeys)) {
+            log.warn("deleteFile 批量删除时 objectKeys 为空，跳过操作, bucket={}", bucket);
             return;
         }
         try {
             List<DeleteObject> deleteObjects = new LinkedList<>();
-            for (String objectName : objectNames) {
-                deleteObjects.add(new DeleteObject(objectName));
+            for (String objectKey : objectKeys) {
+                deleteObjects.add(new DeleteObject(objectKey));
             }
             Iterable<Result<DeleteError>> results =
                     client.removeObjects(
@@ -159,9 +160,9 @@ public class MinioStorageService extends AbstractStorageService implements Stora
                 }
             }
             if (hasError) {
-                log.warn("文件批量删除部分失败, bucket={}, count={}", bucket, objectNames.size());
+                log.warn("文件批量删除部分失败, bucket={}, count={}", bucket, objectKeys.size());
             } else {
-                log.info("文件批量删除成功, bucket={}, count={}", bucket, objectNames.size());
+                log.info("文件批量删除成功, bucket={}, count={}", bucket, objectKeys.size());
             }
 
         } catch (Exception e) {
@@ -170,17 +171,17 @@ public class MinioStorageService extends AbstractStorageService implements Stora
     }
 
     @Override
-    public String getFileUrl(String bucket, String objectName) {
+    public String getFileUrl(String bucket, String objectKey) {
         String publicEndpoint = properties.getPublicEndpoint();
         if (StringUtils.hasText(publicEndpoint)) {
-            return publicEndpoint + SLASH + bucket + SLASH + objectName;
+            return publicEndpoint + SLASH + bucket + SLASH + objectKey;
         }
-        String baseUrl = StorageUrlUtils.buildEndpointUrl(minioProperties.getEndpoint(), minioProperties.isSecure());
-        return baseUrl + SLASH + bucket + SLASH + objectName;
+        String baseUrl = StorageUrlUtil.buildEndpointUrl(minioProperties.getEndpoint(), minioProperties.isSecure());
+        return baseUrl + SLASH + bucket + SLASH + objectKey;
     }
 
     @Override
-    public String getPresignedUrl(String bucket, String objectName, Duration duration) {
+    public String getPresignedUrl(String bucket, String objectKey, Duration duration) {
         try {
             // SigV4 签名将 Host 纳入签名范围，必须用 presignClient（公网 endpoint 构建）生成预签名 URL，
             // 不能用内网 client 签名后再替换 host，否则 MinIO 验签时会因 Host 不匹配而返回 403。
@@ -188,11 +189,11 @@ public class MinioStorageService extends AbstractStorageService implements Stora
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(bucket)
-                            .object(objectName)
+                            .object(objectKey)
                             .expiry((int) duration.toSeconds(), TimeUnit.SECONDS)
                             .build());
         } catch (Exception e) {
-            throw new StorageException("获取预签名URL失败: bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("获取预签名URL失败: bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 

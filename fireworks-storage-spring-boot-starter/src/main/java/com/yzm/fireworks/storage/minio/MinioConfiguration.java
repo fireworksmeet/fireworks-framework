@@ -3,7 +3,7 @@ package com.yzm.fireworks.storage.minio;
 import com.yzm.fireworks.storage.api.DirectUploadService;
 import com.yzm.fireworks.storage.api.StorageService;
 import com.yzm.fireworks.storage.core.StorageProperties;
-import com.yzm.fireworks.storage.core.StorageUrlUtils;
+import com.yzm.fireworks.storage.core.StorageUrlUtil;
 import com.yzm.fireworks.storage.core.orphan.OrphanCleanupProperties;
 import com.yzm.fireworks.storage.core.orphan.OrphanFileGuard;
 import io.minio.MinioClient;
@@ -33,7 +33,7 @@ public class MinioConfiguration {
         Assert.hasText(minio.getAccessKey(), "fireworks.storage.minio.access-key 不能为空");
         Assert.hasText(minio.getSecretKey(), "fireworks.storage.minio.secret-key 不能为空");
         return MinioClient.builder()
-                .endpoint(StorageUrlUtils.buildEndpointUrl(minio.getEndpoint(), minio.isSecure()))
+                .endpoint(StorageUrlUtil.buildEndpointUrl(minio.getEndpoint(), minio.isSecure()))
                 .credentials(minio.getAccessKey(), minio.getSecretKey())
                 .build();
     }
@@ -55,7 +55,7 @@ public class MinioConfiguration {
         StorageProperties.Minio minio = properties.getMinio();
         String endpoint = StringUtils.hasText(properties.getPublicEndpoint())
                 ? properties.getPublicEndpoint()
-                : StorageUrlUtils.buildEndpointUrl(minio.getEndpoint(), minio.isSecure());
+                : StorageUrlUtil.buildEndpointUrl(minio.getEndpoint(), minio.isSecure());
         return MinioClient.builder()
                 .endpoint(endpoint)
                 .credentials(minio.getAccessKey(), minio.getSecretKey())

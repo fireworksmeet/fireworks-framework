@@ -25,10 +25,10 @@ import static com.yzm.fireworks.common.constants.StringPool.COLON;
 
 /**
  * {@code @AutoConfirmFile} 拦截器使用的文件提取辅助类：负责把方法参数解析为待确认的
- * {@link PendingFile} 集合（复用已有的待确认文件实体，仅填充 bucket / objectName）。
+ * {@link PendingFile} 集合（复用已有的待确认文件实体，仅填充 bucket / objectKey）。
  * <p>
  * 规约覆盖三种主流形态：前端直传后传给后端保存的 {@code String} 或 {@code String} 集合/数组，
- * 以及后端上传返回的 {@link StorageFile}（携带 bucket 与 objectName）。不做反射猜测，行为完全可预期。
+ * 以及后端上传返回的 {@link StorageFile}（携带 bucket 与 objectKey）。不做反射猜测，行为完全可预期。
  */
 @Slf4j
 public class AutoConfirmFileSupport {
@@ -42,10 +42,10 @@ public class AutoConfirmFileSupport {
     /**
      * 从方法参数或返回值中解析出待确认文件集合。
      * <p>
-     * 仅通过 {@link AutoConfirmFileAttribute#getObjectName()} 指定的 SpEL 精确提取，不做盲目扫描：
+     * 仅通过 {@link AutoConfirmFileAttribute#getObjectKey()} 指定的 SpEL 精确提取，不做盲目扫描：
      * SpEL 为空时返回空列表；SpEL 解析结果由 {@link #toPendingFiles} 按类型规约为待确认文件。
      *
-     * @param attribute   元数据（含 bucket / objectName SpEL 表达式）
+     * @param attribute   元数据（含 bucket / objectKey SpEL 表达式）
      * @param method      被代理方法
      * @param args        方法参数
      * @param result      方法返回值（可通过 {@code #result} 访问，如后端上传返回的 {@code StorageFile}）
@@ -54,11 +54,11 @@ public class AutoConfirmFileSupport {
      */
     public static List<PendingFile> resolve(AutoConfirmFileAttribute attribute, Method method, Object[] args,
             Object result, BeanFactory beanFactory) {
-        if (attribute == null || attribute.getObjectNameExpression() == null) {
+        if (attribute == null || attribute.getObjectKeyExpression() == null) {
             return Collections.emptyList();
         }
         EvaluationContext context = buildContext(method, args, result, beanFactory);
-        Object value = attribute.getObjectNameExpression().getValue(context);
+        Object value = attribute.getObjectKeyExpression().getValue(context);
         String defaultBucket = attribute.getBucketExpression() != null
                 ? evalToString(attribute.getBucketExpression().getValue(context))
                 : null;
@@ -91,7 +91,7 @@ public class AutoConfirmFileSupport {
     /**
      * 把 SpEL 解析结果规约为待确认文件集合，覆盖三种主流形态：
      * <ul>
-     *     <li>{@link StorageFile}：后端上传的返回对象，拆出 bucket 与 objectName；</li>
+     *     <li>{@link StorageFile}：后端上传的返回对象，拆出 bucket 与 objectKey；</li>
      *     <li>{@link String}：前端直传后传给后端保存的对象名；</li>
      *     <li>{@code Collection} / {@code Iterable} / 数组：递归展开上述类型。</li>
      * </ul>
@@ -104,11 +104,11 @@ public class AutoConfirmFileSupport {
         if (value instanceof StorageFile sf) {
             files.add(PendingFile.builder()
                     .bucket(StringUtils.hasText(sf.getBucketName()) ? sf.getBucketName() : defaultBucket)
-                    .objectName(sf.getObjectName())
+                    .objectKey(sf.getObjectKey())
                     .build());
         } else if (value instanceof String s) {
             if (StringUtils.hasText(s)) {
-                files.add(PendingFile.builder().bucket(defaultBucket).objectName(s).build());
+                files.add(PendingFile.builder().bucket(defaultBucket).objectKey(s).build());
             }
         } else if (value instanceof Iterable<?> iterable) {
             for (Object item : iterable) {
@@ -121,18 +121,18 @@ public class AutoConfirmFileSupport {
             }
         } else {
             log.warn("@AutoConfirmFile 解析结果不是 StorageFile / String 或其集合/数组，已忽略。"
-                    + "objectName 表达式应指向 StorageFile、String 或 List<String>，当前类型: {}",
+                    + "objectKey 表达式应指向 StorageFile、String 或 List<String>，当前类型: {}",
                     value.getClass().getName());
         }
         return files;
     }
 
     private static List<PendingFile> dedupe(List<PendingFile> files) {
-        // PendingFile 是 @Data，equals/hashCode 由所有字段决定，此处按 bucket+objectName 去重。
+        // PendingFile 是 @Data，equals/hashCode 由所有字段决定，此处按 bucket+objectKey 去重。
         Set<String> seen = new LinkedHashSet<>();
         List<PendingFile> result = new ArrayList<>();
         for (PendingFile file : files) {
-            String key = file.getBucket() + COLON + file.getObjectName();
+            String key = file.getBucket() + COLON + file.getObjectKey();
             if (seen.add(key)) {
                 result.add(file);
             }

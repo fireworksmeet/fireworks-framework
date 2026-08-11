@@ -13,7 +13,7 @@ public class StorageFile {
 
     private String bucketName;
 
-    private String objectName;
+    private String objectKey;
 
     private String fileName;
 

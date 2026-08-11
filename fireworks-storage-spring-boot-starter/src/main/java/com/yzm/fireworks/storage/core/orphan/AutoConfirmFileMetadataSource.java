@@ -27,16 +27,16 @@ public class AutoConfirmFileMetadataSource extends AbstractAnnotationMetadataSou
         }
 
         String bucketSpel = annotation.bucket();
-        String objectNameSpel = annotation.objectName();
+        String objectKeySpel = annotation.objectKey();
 
         Expression bucketExpression = StringUtils.hasText(bucketSpel) ? PARSER.parseExpression(bucketSpel) : null;
-        Expression objectNameExpression = StringUtils.hasText(objectNameSpel) ? PARSER.parseExpression(objectNameSpel) : null;
+        Expression objectKeyExpression = StringUtils.hasText(objectKeySpel) ? PARSER.parseExpression(objectKeySpel) : null;
 
         return AutoConfirmFileAttribute.builder()
                 .bucket(bucketSpel)
-                .objectName(objectNameSpel)
+                .objectKey(objectKeySpel)
                 .bucketExpression(bucketExpression)
-                .objectNameExpression(objectNameExpression)
+                .objectKeyExpression(objectKeyExpression)
                 .build();
     }
 }

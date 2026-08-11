@@ -1,12 +1,20 @@
 package com.yzm.fireworks.storage.core;
 
 import com.yzm.fireworks.common.util.StrUtil;
+import com.yzm.fireworks.storage.api.ObjectKeyUtil;
 
 import static com.yzm.fireworks.common.constants.StringPool.*;
 
-public final class StorageUrlUtils {
+/**
+ * 对象存储 URL 构建工具（内部 SPI）。
+ * <p>
+ * 仅用于框架内部各 Provider（MinIO / Aliyun）复用 endpoint、bucket、host 的 URL 拼接逻辑，
+ * 供 core/minio/aliyun 子包使用。作为内部实现细节，<b>不视为对外公共业务 API</b>，方法签名不承诺长期兼容。
+ * 对外业务如需构造对象键，请使用 {@link ObjectKeyUtil}。
+ */
+public final class StorageUrlUtil {
 
-    private StorageUrlUtils() {
+    private StorageUrlUtil() {
     }
 
     public static String buildEndpointUrl(String endpoint, boolean secure) {

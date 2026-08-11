@@ -60,9 +60,9 @@ public class OrphanFileCleaner {
 
         // 按 bucket 分组
         Map<String, List<String>> bucketGroup = expired.stream()
-                .filter(p -> p != null && StringUtils.hasText(p.getBucket()) && StringUtils.hasText(p.getObjectName()))
+                .filter(p -> p != null && StringUtils.hasText(p.getBucket()) && StringUtils.hasText(p.getObjectKey()))
                 .collect(Collectors.groupingBy(PendingFile::getBucket,
-                        Collectors.mapping(PendingFile::getObjectName, Collectors.toList())));
+                        Collectors.mapping(PendingFile::getObjectKey, Collectors.toList())));
 
         int deleted = 0;
         for (Map.Entry<String, List<String>> entry : bucketGroup.entrySet()) {
@@ -88,15 +88,15 @@ public class OrphanFileCleaner {
                 log.warn("批量清理孤儿文件失败, 自动降级为单条依次清理, bucket={}, count={}, reason={}",
                         bucket, objects.size(), e.getMessage());
                 // 降级为单条处理，避免单条对象异常导致整批失败
-                for (String objectName : objects) {
+                for (String objectKey : objects) {
                     try {
-                        storageService.deleteFile(bucket, objectName);
-                        registry.remove(bucket, objectName);
+                        storageService.deleteFile(bucket, objectKey);
+                        registry.remove(bucket, objectKey);
                         deleted++;
-                        log.info("已清理孤儿文件(降级单条), bucket={}, object={}", bucket, objectName);
+                        log.info("已清理孤儿文件(降级单条), bucket={}, object={}", bucket, objectKey);
                     } catch (StorageException ex) {
                         log.warn("清理孤儿文件失败, 将在下轮重试, bucket={}, object={}, reason={}",
-                                bucket, objectName, ex.getMessage());
+                                bucket, objectKey, ex.getMessage());
                     }
                 }
             }

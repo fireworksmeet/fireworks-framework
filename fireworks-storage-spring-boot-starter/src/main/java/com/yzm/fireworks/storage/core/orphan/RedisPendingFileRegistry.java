@@ -45,8 +45,8 @@ public class RedisPendingFileRegistry implements PendingFileRegistry {
     }
 
     @Override
-    public void markPending(String bucket, String objectName, Duration ttl) {
-        if (!StringUtils.hasText(bucket) || !StringUtils.hasText(objectName)) {
+    public void markPending(String bucket, String objectKey, Duration ttl) {
+        if (!StringUtils.hasText(bucket) || !StringUtils.hasText(objectKey)) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -56,27 +56,27 @@ public class RedisPendingFileRegistry implements PendingFileRegistry {
         }
         long expireAt = now + ttlMillis;
         // 直接保存 PendingFile 对象，RedisUtil 底层的 JsonRedisTemplate 会自动序列化为 JSON 存储
-        RedisUtil.zSetAdd(key(), new PendingFile(bucket, objectName), expireAt);
-        log.info("已登记待确认文件, bucket={}, object={}, expireAt={}", bucket, objectName, expireAt);
+        RedisUtil.zSetAdd(key(), new PendingFile(bucket, objectKey), expireAt);
+        log.info("已登记待确认文件, bucket={}, object={}, expireAt={}", bucket, objectKey, expireAt);
     }
 
     @Override
-    public void confirm(String bucket, String objectName) {
-        if (!StringUtils.hasText(bucket) || !StringUtils.hasText(objectName)) {
+    public void confirm(String bucket, String objectKey) {
+        if (!StringUtils.hasText(bucket) || !StringUtils.hasText(objectKey)) {
             return;
         }
-        Long removed = RedisUtil.zSetRemove(key(), new PendingFile(bucket, objectName));
+        Long removed = RedisUtil.zSetRemove(key(), new PendingFile(bucket, objectKey));
         if (removed != null && removed > 0) {
-            log.info("文件已确认, 移除待确认记录, bucket={}, object={}", bucket, objectName);
+            log.info("文件已确认, 移除待确认记录, bucket={}, object={}", bucket, objectKey);
         }
     }
 
     @Override
-    public void confirm(String bucket, List<String> objectNames) {
-        if (!StringUtils.hasText(bucket) || CollectionUtils.isEmpty(objectNames)) {
+    public void confirm(String bucket, List<String> objectKeys) {
+        if (!StringUtils.hasText(bucket) || CollectionUtils.isEmpty(objectKeys)) {
             return;
         }
-        List<PendingFile> files = objectNames.stream()
+        List<PendingFile> files = objectKeys.stream()
                 .filter(StringUtils::hasText)
                 .map(obj -> new PendingFile(bucket, obj))
                 .toList();
@@ -94,7 +94,7 @@ public class RedisPendingFileRegistry implements PendingFileRegistry {
             return;
         }
         List<PendingFile> validFiles = pendingFiles.stream()
-                .filter(pf -> pf != null && StringUtils.hasText(pf.getBucket()) && StringUtils.hasText(pf.getObjectName()))
+                .filter(pf -> pf != null && StringUtils.hasText(pf.getBucket()) && StringUtils.hasText(pf.getObjectKey()))
                 .collect(Collectors.toList());
         if (!validFiles.isEmpty()) {
             Long removed = RedisUtil.zSetRemove(key(), validFiles.toArray());
@@ -126,7 +126,7 @@ public class RedisPendingFileRegistry implements PendingFileRegistry {
             try {
                 // 利用 RedisUtil.convert 自动反序列化成 PendingFile 对象
                 PendingFile pending = RedisUtil.convert(value, PendingFile.class);
-                if (pending != null && StringUtils.hasText(pending.getBucket()) && StringUtils.hasText(pending.getObjectName())) {
+                if (pending != null && StringUtils.hasText(pending.getBucket()) && StringUtils.hasText(pending.getObjectKey())) {
                     result.add(pending);
                 }
             } catch (Exception e) {
@@ -137,13 +137,13 @@ public class RedisPendingFileRegistry implements PendingFileRegistry {
     }
 
     @Override
-    public void remove(String bucket, String objectName) {
-        confirm(bucket, objectName);
+    public void remove(String bucket, String objectKey) {
+        confirm(bucket, objectKey);
     }
 
     @Override
-    public void removeAll(String bucket, List<String> objectNames) {
-        confirm(bucket, objectNames);
+    public void removeAll(String bucket, List<String> objectKeys) {
+        confirm(bucket, objectKeys);
     }
 
     /**

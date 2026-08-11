@@ -51,7 +51,7 @@ private DirectUploadService directUploadService;
     - **Stream(InputStream) 上传**：Aliyun 使用最基础的简单上传（`putObject`），**单次硬上限 5GB**
       （OSS SDK 没有对 InputStream 的自动分片能力，断点续传依赖可重复读取的本地文件，流式数据不具备这个条件）；
       超过 5GB 的流请先落盘为本地文件再改用 File 上传。MinIO 的流式上传内部仍会自动分片，无此限制。
-  - `getFileUrl(bucket, objectName)`：文件的固定访问地址（原图/原文件）。本框架**只输出原图地址**，
+  - `getFileUrl(bucket, objectKey)`：文件的固定访问地址（原图/原文件）。本框架**只输出原图地址**，
     不提供任何图片缩放/格式转换的生成方法。图片处理（缩略图等）遵循"后端只存原图、前端/网关按需处理"的
     云原生解耦原则：前端拿到原图地址后，如需缩略图，直接在 URL 上拼接处理参数由网关/云存储实时处理
     （如阿里云 OSS 的 `?x-oss-process=image/resize,...`、MinIO 前端的 imgproxy），后端业务无需感知。
@@ -60,26 +60,51 @@ private DirectUploadService directUploadService;
 - `DirectUploadService`：
   - `getUploadCredential`：预签名 PUT 直传凭证，前端直接 PUT 整个文件。
   - `getUploadCredentialByPostPolicy`：表单直传(PostPolicy)凭证，前端以 `multipart/form-data` POST 上传。
-    - `objectName` 为后端生成的**完整对象路径（含文件名）**，会被精确写入 `formData.key`，
+    - `objectKey` 为后端生成的**完整对象路径（含文件名）**，会被精确写入 `formData.key`，
       云厂商（OSS/S3）收到请求后直接以该值作为存储路径并忽略前端文件原名。
-      因此 `objectName` 与 `displayUrl` 在签发时即可 100% 确定并精确返回，前端无需做任何文件名替换。
-    - 后端生成 `objectName` 时可使用 UUID / SnowFlake ID / MD5 等唯一标识作为文件名，
+      因此 `objectKey` 与 `displayUrl` 在签发时即可 100% 确定并精确返回，前端无需做任何文件名替换。
+    - 后端生成 `objectKey` 时可使用 UUID / SnowFlake ID / MD5 等唯一标识作为文件名，
       彻底规避特殊字符、中文乱码、超长文件名导致的存储异常，以及不同用户上传同名文件造成的相互覆盖。
     - Aliyun OSS：配置了 `aliyun.callback-url` 时会自动携带 `callback` 表单字段，OSS 上传成功后会回调该地址。
-    - MinIO：`formData.key` 同样写死为完整 `objectName`，PostPolicy 的 `startsWith` 条件使用其所在目录前缀。
-  - 两种凭证都会返回 `objectName` 与 `displayUrl` 两个字段：
-    - `objectName`：文件在云存储中的唯一相对路径/标识，是业务落库的核心字段。
+    - MinIO：`formData.key` 同样写死为完整 `objectKey`，PostPolicy 的 `startsWith` 条件使用其所在目录前缀。
+  - 两种凭证都会返回 `objectKey` 与 `displayUrl` 两个字段：
+    - `objectKey`：文件在云存储中的唯一相对路径/标识，是业务落库的核心字段。
     - `displayUrl`：前端上传成功后的完整回显 URL（带 CDN 域名）。
     - 预签名 PUT 与表单直传(PostPolicy)均返回精确值，无需前端替换占位符。
 
   ```java
-  // 示例：后端生成唯一 objectName，表单直传
-  String objectName = "temp/avatar/202608/" + UUID.randomUUID() + ".jpg";
-  UploadCredential credential = directUploadService.getUploadCredentialByPostPolicy(bucket, objectName, duration);
+  // 示例：后端生成唯一 objectKey，表单直传
+  String objectKey = "temp/avatar/202608/" + UUID.randomUUID() + ".jpg";
+  UploadCredential credential = directUploadService.getUploadCredentialByPostPolicy(bucket, objectKey, duration);
   // credential.getFormData().get("key")       == "temp/avatar/202608/xxxxx.jpg"
-  // credential.getObjectName()                == "temp/avatar/202608/xxxxx.jpg"
+  // credential.getObjectKey()                == "temp/avatar/202608/xxxxx.jpg"
   // credential.getDisplayUrl()                == "https://cdn.com/temp/avatar/202608/xxxxx.jpg"
   ```
+
+## ObjectKey 生成工具（`ObjectKeyUtil`）
+
+业务层在上传/直传时通常需要按规则生成 objectKey，框架提供 `com.yzm.fireworks.storage.api.ObjectKeyUtil`
+对外工具类，覆盖三种最常见模式，统一处理目录归一化、后缀安全过滤与唯一标识生成：
+
+```java
+// 1. 按业务模块 + 日期分区（最常用）
+//    chat/files/2026/08/11/a1b2c3d4e5f6.pdf
+ObjectKeyUtil.buildDateKey("chat/files", "a.pdf");
+
+// 2. 按用户/实体 ID 隔离（头像、个人文档）
+//    avatar/users/10086/c8f9d0a1b2c3.jpg
+ObjectKeyUtil.buildEntityKey("avatar/users", 10086L, "a.jpg");
+
+// 3. 按 Hash 散列目录（超大规模海量小文件，防单目录过多）
+//    docs/receipts/a1/b2/a1b2c3d4e5f67890.pdf
+ObjectKeyUtil.buildHashKey("docs/receipts", "a.pdf");
+
+// 辅助：目录 + 文件名拼接、安全后缀提取
+ObjectKeyUtil.buildObjectKey("avatar/", "a.jpg");  // avatar/a.jpg
+ObjectKeyUtil.getFileExtension("a.JPG");           // jpg（转小写、安全过滤）
+```
+
+内部 URL 构建细节由 `StorageUrlUtils`（core 包，内部 SPI）承担，不对外承诺兼容。
 
 ## 孤儿文件处理
 
@@ -89,7 +114,7 @@ private DirectUploadService directUploadService;
 **解决思路**：框架提供「待确认注册表 + 清理器」。业务层在发放凭证后登记一条"待确认"记录，
 业务处理成功（表单落库）后调用 `confirm` 确认；超过配置时长仍未确认的记录，由清理器扫描并删除对应对象。
 
-**注册表实现**：默认基于 **Redis ZSet**（键 `fireworks:storage:orphan:pending`，member 为 `bucket|objectName`，
+**注册表实现**：默认基于 **Redis ZSet**（键 `fireworks:storage:orphan:pending`，member 为 `bucket|objectKey`，
 score 为截止时间戳）。利用 ZSet 按 score 有序 + Redis 单线程原子性，在高并发与多实例部署下
 登记/确认/过期扫描均安全一致。
 
@@ -108,20 +133,20 @@ private DirectUploadService directUploadService;   // 签发凭证（内部已�
 private OrphanFileGuard orphanFileGuard;           // 业务确认
 
 // 1. 签发凭证（内部已自动登记待确认记录，TTL 用 default-ttl，默认 1 天）
-UploadCredential credential = directUploadService.getUploadCredential(bucket, objectName, Duration.ofHours(1));
-// 表单直传：directUploadService.getUploadCredentialByPostPolicy(bucket, objectName, duration)
+UploadCredential credential = directUploadService.getUploadCredential(bucket, objectKey, Duration.ofHours(1));
+// 表单直传：directUploadService.getUploadCredentialByPostPolicy(bucket, objectKey, duration)
 
 // 2. 业务处理成功（如表单提交落库）后确认文件已被正常使用
-orphanFileGuard.confirm(bucket, credential.getObjectName());
+orphanFileGuard.confirm(bucket, credential.getObjectKey());
 ```
 
 若需要更精确的待确认 TTL（覆盖凭证有效期 + 业务处理耗时），或关闭自动登记，可自行调用：
 
 ```java
-orphanFileGuard.pending(bucket, objectName, Duration.ofHours(2)); // 手动登记（仅 auto-mark-pending=false 时需要）
+orphanFileGuard.pending(bucket, objectKey, Duration.ofHours(2)); // 手动登记（仅 auto-mark-pending=false 时需要）
 ```
 
-> `objectName` 在签发凭证时即由后端精确生成，业务侧直接用 `credential.getObjectName()` 确认即可，无需额外处理文件名。
+> `objectKey` 在签发凭证时即由后端精确生成，业务侧直接用 `credential.getObjectKey()` 确认即可，无需额外处理文件名。
 > 自动登记仅在「孤儿清理能力启用（已引入 Redis）且 `auto-mark-pending=true`」时生效；
 > 未引入 Redis 时，签发凭证仅完成上传，不进行自动登记（文件存储功能不受影响）。
 
@@ -136,22 +161,22 @@ orphanFileGuard.pending(bucket, objectName, Duration.ofHours(2)); // 手动登�
 
 ```java
 // 最常见：单个文件路径在入参 DTO 上（前端直传后把对象名传给后端保存）
-@AutoConfirmFile(objectName = "#userForm.avatarPath")
+@AutoConfirmFile(objectKey = "#userForm.avatarPath")
 public User save(UserForm userForm) {
     // ... 业务保存，落库 avatarPath
     return user;
 }
 
 // 批量：一组对象名（List<String>）作为参数
-@AutoConfirmFile(objectName = "#args[0]")
+@AutoConfirmFile(objectKey = "#args[0]")
 public void savePics(List<String> picUrls) { ... }
 
 // 显式指定桶名（SpEL 或回退到配置 default-bucket）
-@AutoConfirmFile(bucket = "#userForm.bucket", objectName = "#userForm.avatarPath")
+@AutoConfirmFile(bucket = "#userForm.bucket", objectKey = "#userForm.avatarPath")
 public void save(UserForm form) { ... }
 ```
 
-**`objectName` 必填（SpEL 驱动）**：通过 SpEL 从方法参数精确定位文件路径（参数名如 `#userForm.avatarPath`、
+**`objectKey` 必填（SpEL 驱动）**：通过 SpEL 从方法参数精确定位文件路径（参数名如 `#userForm.avatarPath`、
 位置访问如 `#args[0]`），避免盲目扫描造成误确认。**SpEL 变量**：方法参数名、`#args`（参数数组）。
 
 **结果规约**：SpEL 解析结果需为 `String` 或 `String` 的 `Collection`/数组，框架会展开为待确认记录并批量确认；

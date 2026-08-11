@@ -4,11 +4,12 @@ import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.internal.Mimetypes;
 import com.aliyun.oss.model.*;
+import com.yzm.fireworks.storage.api.ObjectKeyUtil;
 import com.yzm.fireworks.storage.api.StorageFile;
 import com.yzm.fireworks.storage.api.StorageService;
 import com.yzm.fireworks.storage.core.AbstractStorageService;
 import com.yzm.fireworks.storage.core.StorageProperties;
-import com.yzm.fireworks.storage.core.StorageUrlUtils;
+import com.yzm.fireworks.storage.core.StorageUrlUtil;
 import com.yzm.fireworks.storage.core.exception.StorageException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
@@ -79,8 +80,8 @@ public class AliyunStorageService extends AbstractStorageService implements Stor
         Assert.notNull(file, "file 不能为空");
         Assert.isTrue(file.isFile(), () -> "文件不存在或不是合法文件: " + file.getAbsolutePath());
 
-        String objectName = buildObjectName(dir, file.getName());
-        return uploadFileWithResumableUpload(bucket, objectName, file);
+        String objectKey = ObjectKeyUtil.buildObjectKey(dir, file.getName());
+        return uploadFileWithResumableUpload(bucket, objectKey, file);
     }
 
     @Override
@@ -99,69 +100,69 @@ public class AliyunStorageService extends AbstractStorageService implements Stor
                         + "OSS SDK 没有提供针对 InputStream 的自动分片能力，超过该大小请先落盘为本地文件后改用 uploadFile(File) 方法"
                         + "（支持断点续传分片上传）");
 
-        String objectName = buildObjectName(dir, fileName);
+        String objectKey = ObjectKeyUtil.buildObjectKey(dir, fileName);
         try (InputStream in = inputStream) {
-            return simpleUploadFromStream(bucket, objectName, fileName, in, contentLength, contentType);
+            return simpleUploadFromStream(bucket, objectKey, fileName, in, contentLength, contentType);
         } catch (StorageException e) {
             throw e;
         } catch (IOException e) {
-            throw new StorageException("关闭文件输入流失败, object=" + objectName, e);
+            throw new StorageException("关闭文件输入流失败, object=" + objectKey, e);
         } catch (Exception e) {
-            throw new StorageException("文件流式上传失败: bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("文件流式上传失败: bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 
     @Override
-    public void deleteFile(String bucket, String objectName) {
+    public void deleteFile(String bucket, String objectKey) {
         Assert.hasText(bucket, "bucket 不能为空");
-        Assert.hasText(objectName, "objectName 不能为空");
+        Assert.hasText(objectKey, "objectKey 不能为空");
         try {
-            client.deleteObject(bucket, objectName);
-            log.info("文件删除成功, bucket={}, object={}", bucket, objectName);
+            client.deleteObject(bucket, objectKey);
+            log.info("文件删除成功, bucket={}, object={}", bucket, objectKey);
         } catch (Exception e) {
-            throw new StorageException("删除文件失败, bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("删除文件失败, bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 
     @Override
-    public void deleteFile(String bucket, List<String> objectNames) {
+    public void deleteFile(String bucket, List<String> objectKeys) {
         Assert.hasText(bucket, "bucket 不能为空");
-        if (CollectionUtils.isEmpty(objectNames)) {
-            log.warn("deleteFile 批量删除时 objectNames 为空，跳过操作, bucket={}", bucket);
+        if (CollectionUtils.isEmpty(objectKeys)) {
+            log.warn("deleteFile 批量删除时 objectKeys 为空，跳过操作, bucket={}", bucket);
             return;
         }
         try {
             client.deleteObjects(new DeleteObjectsRequest(bucket)
-                    .withKeys(objectNames).withEncodingType("url"));
-            log.info("文件批量删除成功, bucket={}, count={}", bucket, objectNames.size());
+                    .withKeys(objectKeys).withEncodingType("url"));
+            log.info("文件批量删除成功, bucket={}, count={}", bucket, objectKeys.size());
         } catch (Exception e) {
             throw new StorageException("批量删除文件失败, bucket=" + bucket, e);
         }
     }
 
     @Override
-    public String getFileUrl(String bucket, String objectName) {
+    public String getFileUrl(String bucket, String objectKey) {
         String publicEndpoint = properties.getPublicEndpoint();
         if (StringUtils.hasText(publicEndpoint)) {
-            return publicEndpoint + SLASH + bucket + SLASH + objectName;
+            return publicEndpoint + SLASH + bucket + SLASH + objectKey;
         }
-        return StorageUrlUtils.buildBucketUrl(bucket, aliyunProperties.getEndpoint(), true) + SLASH + objectName;
+        return StorageUrlUtil.buildBucketUrl(bucket, aliyunProperties.getEndpoint(), true) + SLASH + objectKey;
     }
 
     @Override
-    public String getPresignedUrl(String bucket, String objectName, Duration duration) {
+    public String getPresignedUrl(String bucket, String objectKey, Duration duration) {
         Date expiration = new Date(System.currentTimeMillis() + duration.toMillis());
         // 显式指定 HttpMethod.GET（即便这是 SDK 3 参数版 generatePresignedUrl 的默认行为），
         // 与 AliyunDirectUploadService#getUploadCredential 中显式指定 PUT 的写法保持一致，
         // 避免一边显式写方法、一边依赖隐式默认值，看代码时容易误以为两者是同一种签名。
-        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, objectName, HttpMethod.GET);
+        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, objectKey, HttpMethod.GET);
         request.setExpiration(expiration);
         String urlStr = client.generatePresignedUrl(request).toString();
         // OSS 使用 V1 签名，Host 不在签名范围内（CanonicalizedResource 只含路径），
         // 因此可以在签名完成后安全地将内网 host 替换为公网地址，签名依然有效。
         String publicEndpoint = properties.getPublicEndpoint();
         if (StringUtils.hasText(publicEndpoint)) {
-            urlStr = StorageUrlUtils.replaceHost(urlStr, StorageUrlUtils.buildBucketUrl(bucket, publicEndpoint, true));
+            urlStr = StorageUrlUtil.replaceHost(urlStr, StorageUrlUtil.buildBucketUrl(bucket, publicEndpoint, true));
         }
         return urlStr;
     }
@@ -179,11 +180,11 @@ public class AliyunStorageService extends AbstractStorageService implements Stor
      * 并通过本地 checkpoint 文件（{@code <file>.ucp}）记录已完成的分片，上传中断后下次调用可自动跳过已传分片。
      * 上传完全成功后，SDK 会自动清理 checkpoint 文件；失败则保留，供下次重试时续传。
      */
-    private StorageFile uploadFileWithResumableUpload(String bucket, String objectName, File file) {
+    private StorageFile uploadFileWithResumableUpload(String bucket, String objectKey, File file) {
         ObjectMetadata metadata = buildContentDispositionMetadata(file.getName());
-        metadata.setContentType(Mimetypes.getInstance().getMimetype(file, objectName));
+        metadata.setContentType(Mimetypes.getInstance().getMimetype(file, objectKey));
 
-        UploadFileRequest uploadFileRequest = new UploadFileRequest(bucket, objectName);
+        UploadFileRequest uploadFileRequest = new UploadFileRequest(bucket, objectKey);
         uploadFileRequest.setUploadFile(file.getAbsolutePath());
         uploadFileRequest.setObjectMetadata(metadata);
         uploadFileRequest.setPartSize(properties.getPartSize());
@@ -195,8 +196,8 @@ public class AliyunStorageService extends AbstractStorageService implements Stor
             UploadFileResult result = client.uploadFile(uploadFileRequest);
             String etag = extractETag(result);
             log.info("文件上传成功(断点续传), bucket={}, object={}, size={}, etag={}",
-                    bucket, objectName, file.length(), etag);
-            return buildStorageFile(bucket, objectName, file.getName(), getFileUrl(bucket, objectName),
+                    bucket, objectKey, file.length(), etag);
+            return buildStorageFile(bucket, objectKey, file.getName(), getFileUrl(bucket, objectKey),
                     file.length(), metadata.getContentType(), etag);
         } catch (Throwable t) {
             // OSS SDK 的 uploadFile 方法声明 throws Throwable（内部多线程分片上传的异常会原样透出），
@@ -204,7 +205,7 @@ public class AliyunStorageService extends AbstractStorageService implements Stor
             if (t instanceof Error error) {
                 throw error;
             }
-            throw new StorageException("断点续传上传失败: bucket=" + bucket + ", object=" + objectName
+            throw new StorageException("断点续传上传失败: bucket=" + bucket + ", object=" + objectKey
                     + "，checkpoint文件: " + uploadFileRequest.getCheckpointFile() + "，可重新调用以从断点处继续上传", t);
         }
     }
@@ -219,7 +220,7 @@ public class AliyunStorageService extends AbstractStorageService implements Stor
         return null;
     }
 
-    private StorageFile simpleUploadFromStream(String bucket, String objectName, String fileName,
+    private StorageFile simpleUploadFromStream(String bucket, String objectKey, String fileName,
                                                 InputStream inputStream, long contentLength, String contentType) {
         ObjectMetadata metadata = buildContentDispositionMetadata(fileName);
         metadata.setContentLength(contentLength);
@@ -227,14 +228,14 @@ public class AliyunStorageService extends AbstractStorageService implements Stor
             metadata.setContentType(contentType);
         }
         try {
-            PutObjectRequest putObjectRequest = new PutObjectRequest(bucket, objectName, inputStream, metadata);
+            PutObjectRequest putObjectRequest = new PutObjectRequest(bucket, objectKey, inputStream, metadata);
             PutObjectResult result = client.putObject(putObjectRequest);
             log.info("文件流式上传成功, bucket={}, object={}, size={}, etag={}",
-                    bucket, objectName, contentLength, result.getETag());
-            return buildStorageFile(bucket, objectName, fileName, getFileUrl(bucket, objectName),
+                    bucket, objectKey, contentLength, result.getETag());
+            return buildStorageFile(bucket, objectKey, fileName, getFileUrl(bucket, objectKey),
                     contentLength, metadata.getContentType(), result.getETag());
         } catch (Exception e) {
-            throw new StorageException("文件流式上传失败: bucket=" + bucket + ", object=" + objectName, e);
+            throw new StorageException("文件流式上传失败: bucket=" + bucket + ", object=" + objectKey, e);
         }
     }
 }
