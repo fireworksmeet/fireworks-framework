@@ -118,7 +118,7 @@ boolean isEmail = ValidationUtil.isEmail("a@b.com");
 
 ### 9. Jackson 全局配置
 
-`JacksonAutoConfiguration` 自动注册 `IJackson2ObjectMapperBuilderCustomizer`，对容器中的 `ObjectMapper` 生效：
+`CommonAutoConfiguration` 自动注册一个 `Jackson2ObjectMapperBuilderCustomizer`（Spring Boot 会收集容器中所有该类型的 Bean 并统一应用），对容器中的 `ObjectMapper` 生效：
 
 - 时间格式统一：`yyyy-MM-dd HH:mm:ss`、`yyyy-MM-dd`、`HH:mm:ss`（`LocalDateTime`/`LocalDate`/`LocalTime`）。
 - `BigDecimal` / `BigInteger` 以普通字符串输出（防科学计数法与 JS 精度丢失）。

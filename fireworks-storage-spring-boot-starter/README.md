@@ -117,6 +117,9 @@ public class UserVO {
 }
 ```
 
+**注解位于 common 模块**（`com.yzm.fireworks.common.annotation.StorageUrl`、`com.yzm.fireworks.common.enums.UrlType`），
+业务分层中的 api 层 DTO 字段可直接使用，**无需依赖 storage 模块**。
+
 注解参数：
 
 | 参数 | 说明 | 默认值 |
@@ -127,7 +130,10 @@ public class UserVO {
 | `durationSeconds` | 签名有效时长（秒） | `7200` |
 | `delimiter` | 多图分隔符（逗号分隔的多个 objectKey） | `,` |
 
-> 实现基于 Jackson 的 `StorageUrlJsonSerializer`（`ContextualSerializer`），支持集合、数组、分隔符字符串与单个 Key 的多态解析。
+> **实现机制**：`@StorageUrl` 只是声明在 common 的标记注解，真正的 URL 解析逻辑 `StorageUrlJsonSerializer`
+> 留在 storage 模块。引入 storage 后，`StorageAutoConfiguration` 自动注册 `StorageUrlModule`
+> （基于 `BeanSerializerModifier`）把标注 `@StorageUrl` 的字段动态绑定到该序列化器，支持集合、数组、
+> 分隔符字符串与单个 Key 的多态解析。**若应用未引入 storage，注解字段将原样输出**，天然向后兼容。
 
 ## 孤儿文件处理
 
