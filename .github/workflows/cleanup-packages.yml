@@ -48,4 +48,4 @@ jobs:
           # 2. 下面这个正则的意思是：除了包含 -SNAPSHOT 或时间戳格式的版本外，其他的（如 1.0.0, 1.0.1, v1.2.0 等正式 Tag）一律 Ignore（保留不删）！
           ignore-versions: '^(?!\d+\.\d+\.\d+.*-SNAPSHOT).*'
 
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MAVEN_DEPLOY_TOKEN }}
