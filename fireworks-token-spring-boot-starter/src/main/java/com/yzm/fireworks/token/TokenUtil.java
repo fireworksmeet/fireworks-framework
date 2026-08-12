@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.yzm.fireworks.common.constants.StringPool.SPACE;
 
@@ -52,7 +53,7 @@ public class TokenUtil {
      * @return Token字符串，如果不存在则返回null
      */
     public static String extractToken(HttpServletRequest request) {
-        Assert.notNull(request, "request must not be null");
+        Objects.requireNonNull(request, "request must not be null");
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (!StringUtils.hasText(authorization)) {
             return null;
@@ -120,7 +121,7 @@ public class TokenUtil {
      * 生成JWT类型Token
      */
     public String generateJwtToken(JWTClaim jwtClaim) {
-        Assert.notNull(jwtClaim, "jwtClaim must not be null");
+        Objects.requireNonNull(jwtClaim, "jwtClaim must not be null");
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .claim(jwtProperties.getUserIdKey(), jwtClaim.getUserId())
                 .claim(jwtProperties.getExtKey(), jwtClaim.getExt())

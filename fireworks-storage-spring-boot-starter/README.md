@@ -83,7 +83,7 @@ private DirectUploadService directUploadService;
 
 ## ObjectKey 生成工具（`ObjectKeyUtil`）
 
-业务层在上传/直传时通常需要按规则生成 objectKey，框架提供 `com.yzm.fireworks.storage.api.ObjectKeyUtil`
+业务层在上传/直传时通常需要按规则生成 objectKey，框架提供 `com.yzm.fireworks.storage.model.util.ObjectKeyUtil`
 对外工具类，覆盖三种最常见模式，统一处理目录归一化、后缀安全过滤与唯一标识生成：
 
 ```java
@@ -104,7 +104,30 @@ ObjectKeyUtil.buildObjectKey("avatar/", "a.jpg");  // avatar/a.jpg
 ObjectKeyUtil.getFileExtension("a.JPG");           // jpg（转小写、安全过滤）
 ```
 
-内部 URL 构建细节由 `StorageUrlUtils`（core 包，内部 SPI）承担，不对外承诺兼容。
+## 声明式 URL 输出（`@StorageUrl`）
+
+实体字段只需保存 objectKey，序列化输出时可通过 `@StorageUrl` 注解自动转换为可访问 URL，无需手动拼 URL：
+
+```java
+public class UserVO {
+    private String avatarPath;        // 数据库存 objectKey，如 "avatar/users/10086/xxx.jpg"
+
+    @StorageUrl(source = "avatarPath", type = UrlType.PRESIGNED, durationSeconds = 7200)
+    private String avatarUrl;         // 序列化时自动填充为预签名 URL
+}
+```
+
+注解参数：
+
+| 参数 | 说明 | 默认值 |
+| --- | --- | --- |
+| `source` | 关联的 ObjectKey 源字段名；为空表示当前字段本身即 objectKey | 空 |
+| `bucket` | 目标桶，为空用配置的默认桶 | 空 |
+| `type` | URL 类型：`PUBLIC` / `PRESIGNED` / `GATEWAY` | `PUBLIC` |
+| `durationSeconds` | 签名有效时长（秒） | `7200` |
+| `delimiter` | 多图分隔符（逗号分隔的多个 objectKey） | `,` |
+
+> 实现基于 Jackson 的 `StorageUrlJsonSerializer`（`ContextualSerializer`），支持集合、数组、分隔符字符串与单个 Key 的多态解析。
 
 ## 孤儿文件处理
 
@@ -221,8 +244,8 @@ fireworks:
 ### 依赖说明
 
 孤儿清理的 Redis 实现依赖 `fireworks-redis-spring-boot-starter`（以 `optional` 引入）。
-引入 Redis 后自动注册 `RedisPendingFileRegistry`；不引入 Redis 时不注册，孤儿清理功能整体不生效。
-如需替换注册表实现，实现 `PendingFileRegistry` 接口并声明为 `@Bean` 即可自动取代默认实现。
+引入 Redis 后自动注册 `RedisOrphanRegistry`（基于 Redis ZSet 的默认实现）；不引入 Redis 时不注册，孤儿清理功能整体不生效。
+如需替换注册表实现，实现 `OrphanRegistry` 接口并声明为 `@Bean` 即可自动取代默认实现。
 
 ## 注意事项
 

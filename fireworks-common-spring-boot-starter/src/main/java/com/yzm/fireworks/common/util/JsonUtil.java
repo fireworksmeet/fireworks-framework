@@ -22,7 +22,7 @@ public class JsonUtil {
     }
 
     public static ObjectMapper getObjectMapper() {
-        return ApplicationContextUtil.getBean(ObjectMapper.class);
+        return SpringContextHolder.getBean(ObjectMapper.class);
     }
 
     // ==================== 1. 序列化 (Object -> String / byte[]) ====================

@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yzm.fireworks.api.exception.BizException;
 import com.yzm.fireworks.common.enums.CommonExceptionStatus;
 import com.yzm.fireworks.common.enums.ExceptionStatus;
-import com.yzm.fireworks.common.util.ApplicationContextUtil;
+import com.yzm.fireworks.common.util.SpringContextHolder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
@@ -149,12 +149,9 @@ public class Result<T> {
     private static volatile ObjectMapper fallbackObjectMapper;
 
     private static ObjectMapper getObjectMapper() {
-        try {
-            if (ApplicationContextUtil.getApplicationContext() != null) {
-                return ApplicationContextUtil.getApplicationContext().getBean(ObjectMapper.class);
-            }
-        } catch (Exception ignored) {
-            // Spring 容器未就绪或无法获取 Bean，降级使用默认实例
+        ObjectMapper objectMapper = SpringContextHolder.getBean(ObjectMapper.class);
+        if (!ObjectUtils.isEmpty(objectMapper)) {
+            return objectMapper;
         }
         // 双重检查锁，保证 fallback 实例的线程安全
         if (fallbackObjectMapper == null) {
@@ -171,13 +168,7 @@ public class Result<T> {
      * 获取应用名称，Spring 容器未就绪时返回 "unknown"，避免 NPE。
      */
     private static String getApplicationName() {
-        try {
-            return ApplicationContextUtil.getApplicationContext()
-                    .getEnvironment()
-                    .getProperty("spring.application.name", UNKNOWN);
-        } catch (Exception e) {
-            return UNKNOWN;
-        }
+        return SpringContextHolder.getProperty("spring.application.name", UNKNOWN);
     }
 
     private <E> E convertObject(Object value, Class<E> eClass) {

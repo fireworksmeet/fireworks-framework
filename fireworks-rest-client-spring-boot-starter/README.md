@@ -81,6 +81,28 @@ public class UserService {
 }
 ```
 
+#### HTTP 接口代理（`RestClientUtil`）
+
+框架提供 `com.yzm.fireworks.restclient.util.RestClientUtil`，可将声明式 `HttpServiceProxyFactory` 接口转换为代理对象：
+
+```java
+// 1. 定义 HTTP 接口
+public interface UserClient {
+    @GetExchange("/api/users/{id}")
+    UserDTO getUser(@PathVariable Long id);
+}
+
+// 2. 创建代理（指定 baseUrl）
+UserClient client = RestClientUtil.createProxy(restClientBuilder, UserClient.class, "http://user-service");
+
+// 3. 调用
+UserDTO user = client.getUser(10086L);
+```
+
+`RestClientUtil` 还提供 `requestWithForm`（Form/URL 参数请求）与 `postWithJson`（JSON POST）两个快捷方法。
+
+> `createProxy` 内部使用 `builder.clone()`，避免污染容器中共享的 `RestClient.Builder` 实例。
+
 ## 配置说明
 
 ### 超时配置

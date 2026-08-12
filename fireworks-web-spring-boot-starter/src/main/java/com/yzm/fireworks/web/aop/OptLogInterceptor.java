@@ -3,7 +3,6 @@ package com.yzm.fireworks.web.aop;
 import com.google.common.base.Stopwatch;
 import com.yzm.fireworks.api.annotation.OptLog;
 import com.yzm.fireworks.common.constants.StringPool;
-import com.yzm.fireworks.common.util.ApplicationContextUtil;
 import com.yzm.fireworks.common.util.JsonUtil;
 import com.yzm.fireworks.web.context.OptLogContext;
 import com.yzm.fireworks.web.model.OptLogOperator;
@@ -38,7 +37,7 @@ import java.time.LocalDateTime;
  *   <li>操作人信息通过 {@link OptLogOperatorProvider} SPI 获取，框架层不依赖
  *       任何具体认证框架（Spring Security / Sa-Token / 自定义 ThreadLocal 均可）</li>
  *   <li>{@link OptLogService} 和 {@link OptLogOperatorProvider} 均通过
- *       {@link ApplicationContextUtil#getBean} 懒加载，未注册时静默跳过</li>
+ *       {@link com.yzm.fireworks.common.util.SpringContextHolder#getBean} 懒加载，未注册时静默跳过</li>
  * </ul>
  *
  * @author JYuan

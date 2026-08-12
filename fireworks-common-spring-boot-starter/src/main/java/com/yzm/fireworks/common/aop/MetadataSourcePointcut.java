@@ -4,9 +4,9 @@ import org.springframework.aop.ClassFilter;
 import org.springframework.aop.support.StaticMethodMatcherPointcut;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
 
 import java.lang.reflect.Method;
+import java.util.Objects;
 
 /**
  * 通用元数据切点
@@ -18,7 +18,7 @@ public class MetadataSourcePointcut<T> extends StaticMethodMatcherPointcut {
     private final AbstractAnnotationMetadataSource<T> metadataSource;
 
     public MetadataSourcePointcut(AbstractAnnotationMetadataSource<T> metadataSource) {
-        Assert.notNull(metadataSource, "MetadataSource must not be null");
+        Objects.requireNonNull(metadataSource, "MetadataSource must not be null");
         this.metadataSource = metadataSource;
     }
 

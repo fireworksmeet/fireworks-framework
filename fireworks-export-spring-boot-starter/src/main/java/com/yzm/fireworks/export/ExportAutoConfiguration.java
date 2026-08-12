@@ -1,10 +1,13 @@
 package com.yzm.fireworks.export;
 
+import com.yzm.fireworks.export.core.ExcelExporter;
+import com.yzm.fireworks.export.core.ExcelExporterImpl;
+import com.yzm.fireworks.storage.service.StorageService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Excel 导出自动配置
@@ -13,12 +16,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @AutoConfiguration
 @EnableConfigurationProperties(ExportProperties.class)
-@EnableScheduling
 public class ExportAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ExportService exportService(ExportProperties exportProperties) {
-        return new ExportServiceImpl(exportProperties);
+    public ExcelExporter excelExporter(ExportProperties exportProperties, @Autowired(required = false) StorageService storageService) {
+        return new ExcelExporterImpl(exportProperties, storageService);
     }
 }

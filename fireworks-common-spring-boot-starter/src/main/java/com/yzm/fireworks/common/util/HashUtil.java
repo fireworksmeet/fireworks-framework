@@ -7,6 +7,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
+import java.util.Objects;
 
 /**
  * 哈希工具类（不可逆）
@@ -95,7 +96,7 @@ public final class HashUtil {
      * @return 十六进制哈希字符串，长度固定 64 位
      */
     public static String sha256(byte[] bytes) {
-        Assert.notNull(bytes, "bytes must not be null");
+        Objects.requireNonNull(bytes, "bytes must not be null");
         return DigestUtils.sha256Hex(bytes);
     }
 }

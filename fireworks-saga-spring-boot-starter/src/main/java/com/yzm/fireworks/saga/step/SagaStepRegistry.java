@@ -6,6 +6,7 @@ import org.springframework.util.Assert;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,7 +35,7 @@ public class SagaStepRegistry implements SmartInitializingSingleton {
      */
     public SagaStep<?> getStep(String stepName) {
         SagaStep<?> sagaStep = registry.get(stepName);
-        Assert.notNull(sagaStep, "No SagaStep registered for: " + stepName);
+        Objects.requireNonNull(sagaStep, "No SagaStep registered for: " + stepName);
         return sagaStep;
     }
 

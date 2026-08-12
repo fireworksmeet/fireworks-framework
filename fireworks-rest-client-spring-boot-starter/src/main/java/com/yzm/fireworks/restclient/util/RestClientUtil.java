@@ -11,6 +11,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
+import java.util.Objects;
+
 /**
  * @author JYuan
  */
@@ -30,8 +32,8 @@ public class RestClientUtil {
      * @return 代理客户端实例
      */
     public static <T> T createProxy(RestClient.Builder builder, Class<T> serviceType, String baseUrl) {
-        Assert.notNull(builder, "builder 不能为空");
-        Assert.notNull(serviceType, "serviceType 不能为空");
+        Objects.requireNonNull(builder, "builder 不能为空");
+        Objects.requireNonNull(serviceType, "serviceType 不能为空");
 
         // 使用 builder.clone() 防止修改传入的共享 builder 对象，造成多 Client 间的 baseUrl 相互污染
         RestClient.Builder clonedBuilder = builder.clone();

@@ -16,5 +16,4 @@ CREATE TABLE IF NOT EXISTS T_LEAF_ALLOC
 INSERT INTO T_LEAF_ALLOC(biz_tag, max_id, step, description)
 VALUES ('ORDER', 131949450910, 5000, '用于订单的编号'),
        ('MEMBER', 908536682, 5000, '用于会员的编号'),
-       ('FILE_SUFFIX', 13253190733140, 10000, '用于文件的后缀编号'),
        ('SERIAL_NUMBER', 1544986154200202, 10000, '用于流水号');
