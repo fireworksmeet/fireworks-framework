@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 消息发送结果
@@ -43,7 +43,7 @@ public class MessageResult implements Serializable {
      * 发送时间
      */
     @Builder.Default
-    private LocalDateTime sendTime = LocalDateTime.now();
+    private Instant sendTime = Instant.now();
     
     /**
      * 外部系统消息ID（如短信回执ID）

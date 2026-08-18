@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Date;
+import java.time.Instant;
 
 
 /**
@@ -18,14 +18,14 @@ import java.util.Date;
 public class JWTClaim {
 
     /**
-     * jwt的过期时间
+     * jwt的过期时间（绝对时间点）
      */
-    private Date exp;
+    private Instant exp;
 
     /**
-     * 生成jwt的时间
+     * 生成jwt的时间（绝对时间点）
      */
-    private Date iat;
+    private Instant iat;
 
     /**
      * jwt所面向的用户(某些场景下会被当作用户id，如Centrifugo就将token中的sub当作用户id)

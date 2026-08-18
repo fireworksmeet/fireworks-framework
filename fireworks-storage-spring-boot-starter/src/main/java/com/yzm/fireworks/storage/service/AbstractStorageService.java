@@ -2,7 +2,6 @@ package com.yzm.fireworks.storage.service;
 
 import com.yzm.fireworks.common.constants.StringPool;
 import com.yzm.fireworks.common.util.HashUtil;
-import com.yzm.fireworks.common.util.TimeUtil;
 import com.yzm.fireworks.storage.config.properties.StorageProperties;
 import com.yzm.fireworks.storage.exception.StorageException;
 import com.yzm.fireworks.storage.model.dto.StorageFile;
@@ -14,9 +13,8 @@ import org.springframework.util.StringUtils;
 
 import java.io.*;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -72,7 +70,7 @@ public abstract class AbstractStorageService implements StorageService {
 
     @Override
     public StorageFile upload(String bucket, String objectKey, File file, String contentType) throws IOException {
-        Objects.requireNonNull(file, "待上传文件不能为空");
+        Assert.notNull(file, "待上传文件不能为空");
         Assert.isTrue(file.exists() && file.isFile(), "待上传文件不存在或不是标注文件: " + file.getAbsolutePath());
         try (InputStream is = new FileInputStream(file)) {
             return upload(bucket, objectKey, is, file.length(), contentType);
@@ -81,7 +79,7 @@ public abstract class AbstractStorageService implements StorageService {
 
     @Override
     public StorageFile upload(String bucket, String objectKey, byte[] bytes, String contentType) {
-        Objects.requireNonNull(bytes, "上传字节数组不能为空");
+        Assert.notNull(bytes, "上传字节数组不能为空");
         ByteArrayInputStream is = new ByteArrayInputStream(bytes);
         return upload(bucket, objectKey, is, bytes.length, contentType);
     }
@@ -93,7 +91,7 @@ public abstract class AbstractStorageService implements StorageService {
 
     @Override
     public StorageFile upload(String bucket, String objectKey, InputStream inputStream, long contentLength, String contentType) {
-        Objects.requireNonNull(inputStream, "上传输入流不能为空");
+        Assert.notNull(inputStream, "上传输入流不能为空");
         String targetBucket = getEffectiveBucket(bucket);
         String targetKey = normalizeObjectKey(objectKey);
 
@@ -106,12 +104,12 @@ public abstract class AbstractStorageService implements StorageService {
     public void readStream(String bucket, String objectKey, Consumer<InputStream> streamConsumer) {
         String targetBucket = getEffectiveBucket(bucket);
         String targetKey = normalizeObjectKey(objectKey);
-        Objects.requireNonNull(streamConsumer, "streamConsumer 不能为空");
+        Assert.notNull(streamConsumer, "streamConsumer 不能为空");
 
         executeWithExceptionTranslation("读取文件流", targetBucket, targetKey, () -> {
             // try-with-resources 强行收口，自动关闭云厂商返回的底层 HttpInputStream
             try (InputStream is = doGetInputStream(targetBucket, targetKey)) {
-                Objects.requireNonNull(is, "获取到的文件流为空: " + targetKey);
+                Assert.notNull(is, "获取到的文件流为空: " + targetKey);
                 streamConsumer.accept(is);
             }
             return null;
@@ -206,7 +204,7 @@ public abstract class AbstractStorageService implements StorageService {
         String baseUrl = getPublicUrl(bucket, objectKey);
 
         // 2. 计算绝对过期时间戳（10位 Unix 秒级时间戳）
-        long expires = TimeUtil.toEpochSecond(LocalDateTime.now().plus(duration));
+        long expires = Instant.now().plus(duration).getEpochSecond();
 
         // 3. 对 (baseUrl + ":" + expires) 进行 HMAC-SHA256 签名
         String signature = HashUtil.hashWithSalt(baseUrl + StringPool.COLON + expires, gatewaySecretKey);

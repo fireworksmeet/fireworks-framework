@@ -33,39 +33,20 @@ public class CronUtil {
      * @return cron 表达式字符串
      */
     public static String toCronExpression(LocalDateTime dateTime, TimeCycle timeCycle) {
-        String cron;
-        switch (timeCycle) {
-            case YEAR:
-                cron = String.format("%d %d %d %d %d ? *", dateTime.getSecond(),
-                        dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfMonth(),
-                        dateTime.getMonthValue());
-                break;
-            case MONTH:
-                cron = String.format("%d %d %d %d * ? *", dateTime.getSecond(),
-                        dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfMonth());
-                break;
-            case WEEK:
-                cron = String.format("%d %d %d ? * %d *", dateTime.getSecond(),
-                        dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfWeek().getValue() % 7);
-                break;
-            case DAY:
-                cron = String.format("%d %d %d * * ? *", dateTime.getSecond(),
-                        dateTime.getMinute(), dateTime.getHour());
-                break;
-            case HOUR:
-                cron = String.format("%d %d * * * ? *", dateTime.getSecond(),
-                        dateTime.getMinute());
-                break;
-            case MINUTE:
-                cron = String.format("%d * * * * ? *", dateTime.getSecond());
- 
-            break;
-            case SECOND:
-                cron = "0/1 * * * * ? *";
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown time cycle: " + timeCycle);
-        }
-        return cron;
+        return switch (timeCycle) {
+            case YEAR -> String.format("%d %d %d %d %d ? *", dateTime.getSecond(),
+                    dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfMonth(),
+                    dateTime.getMonthValue());
+            case MONTH -> String.format("%d %d %d %d * ? *", dateTime.getSecond(),
+                    dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfMonth());
+            case WEEK -> String.format("%d %d %d ? * %d *", dateTime.getSecond(),
+                    dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfWeek().getValue() % 7);
+            case DAY -> String.format("%d %d %d * * ? *", dateTime.getSecond(),
+                    dateTime.getMinute(), dateTime.getHour());
+            case HOUR -> String.format("%d %d * * * ? *", dateTime.getSecond(),
+                    dateTime.getMinute());
+            case MINUTE -> String.format("%d * * * * ? *", dateTime.getSecond());
+            case SECOND -> "0/1 * * * * ? *";
+        };
     }
 }

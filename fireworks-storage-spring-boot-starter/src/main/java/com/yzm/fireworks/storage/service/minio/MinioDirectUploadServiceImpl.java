@@ -9,9 +9,9 @@ import io.minio.MinioClient;
 import io.minio.http.Method;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 
 import java.time.Duration;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 
@@ -35,7 +35,8 @@ public class MinioDirectUploadServiceImpl extends AbstractDirectUploadService {
             @Nullable OrphanFileGuard orphanFileGuard,
             OrphanCleanupProperties orphanCleanupProperties) {
         super(storageService, orphanFileGuard, orphanCleanupProperties);
-        this.presignClient = Objects.requireNonNull(presignClient, "presignClient 不能为 null");
+        Assert.notNull(presignClient, "presignClient 不能为 null");
+        this.presignClient = presignClient;
         this.storageService = storageService;
     }
 

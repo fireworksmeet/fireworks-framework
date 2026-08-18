@@ -1,10 +1,10 @@
 package com.yzm.fireworks.storage.orphan;
 
 import com.yzm.fireworks.common.aop.AbstractAnnotationMetadataSource;
+import com.yzm.fireworks.common.util.SpelUtil;
 import com.yzm.fireworks.storage.model.annotation.AutoConfirmFile;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.expression.Expression;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.AnnotatedElement;
@@ -17,8 +17,6 @@ import java.lang.reflect.AnnotatedElement;
  */
 public class AutoConfirmFileMetadataSource extends AbstractAnnotationMetadataSource<AutoConfirmFileAttribute> {
 
-    private static final SpelExpressionParser PARSER = new SpelExpressionParser();
-
     @Override
     protected AutoConfirmFileAttribute findAnnotationMetadata(AnnotatedElement element) {
         AutoConfirmFile annotation = AnnotatedElementUtils.findMergedAnnotation(element, AutoConfirmFile.class);
@@ -29,8 +27,9 @@ public class AutoConfirmFileMetadataSource extends AbstractAnnotationMetadataSou
         String bucketSpel = annotation.bucket();
         String objectKeySpel = annotation.objectKey();
 
-        Expression bucketExpression = StringUtils.hasText(bucketSpel) ? PARSER.parseExpression(bucketSpel) : null;
-        Expression objectKeyExpression = StringUtils.hasText(objectKeySpel) ? PARSER.parseExpression(objectKeySpel) : null;
+        // SpelUtil.parse 对空表达式会抛异常，因此仅在表达式非空时解析。
+        Expression bucketExpression = StringUtils.hasText(bucketSpel) ? SpelUtil.parse(bucketSpel) : null;
+        Expression objectKeyExpression = StringUtils.hasText(objectKeySpel) ? SpelUtil.parse(objectKeySpel) : null;
 
         return AutoConfirmFileAttribute.builder()
                 .bucket(bucketSpel)

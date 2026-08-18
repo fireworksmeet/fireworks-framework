@@ -4,14 +4,13 @@ import com.yzm.fireworks.common.util.SpelUtil;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.util.ClassUtils;
-import org.springframework.util.ObjectUtils;
+import org.springframework.context.expression.MethodBasedEvaluationContext;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
 
 import static com.yzm.fireworks.common.constants.StringPool.COLON;
+import static com.yzm.fireworks.common.constants.StringPool.DOT;
 
 
 /**
@@ -53,11 +52,20 @@ public class DistributedLockInterceptor implements MethodInterceptor {
     private String buildLockKey(Method method, Object[] args, DistributedLockAttribute attribute) {
         String prefix = StringUtils.hasText(attribute.getPrefixKey())
                 ? attribute.getPrefixKey()
-                : SpelUtil.getMethodKey(method);
+                : getMethodKey(method);
         if (!StringUtils.hasText(attribute.getKey())) {
             return prefix;
         }
-        String suffix = SpelUtil.parseSpEl(method, args, attribute.getKey());
+        MethodBasedEvaluationContext context = SpelUtil.createMethodContext(null, method, args);
+        String suffix = SpelUtil.evaluate(attribute.getKey(), context, String.class);
         return StringUtils.hasText(suffix) ? prefix + COLON + suffix : prefix;
+    }
+
+    /**
+     * 生成方法全限定名，
+     * 用作未显式指定 prefixKey 时的默认锁前缀。
+     */
+    private static String getMethodKey(Method method) {
+        return method.getDeclaringClass().getName() + DOT + method.getName();
     }
 }

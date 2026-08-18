@@ -26,6 +26,7 @@
 ### 2. 初始化数据库
 
 执行 `resources/db.sql` 创建 `message_record` 表（含 `uk_message_id` 唯一索引，是 DB 层去重的关键）。
+`send_time` / `next_retry_time` / `created_at` / `updated_at` 均使用 **`timestamptz`（带时区）**，与实体 `Instant` 字段（绝对时间点）语义一致，跨时区部署时保持时间准确。
 
 ### 3. 配置
 

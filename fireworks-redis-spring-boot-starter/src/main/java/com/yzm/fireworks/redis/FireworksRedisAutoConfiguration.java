@@ -41,7 +41,6 @@ import org.springframework.util.ObjectUtils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import static com.yzm.fireworks.common.constants.StringPool.COLON;
@@ -179,7 +178,7 @@ public class FireworksRedisAutoConfiguration {
                                                                     MultiRedisProperties multiRedisProperties) {
         String primary = multiRedisProperties.getPrimary();
         LettuceConnectionFactory factory = multiRedisManager.getFactoryMap().get(primary);
-        Objects.requireNonNull(factory, "Primary datasource '" + primary + "' not found in MultiRedisManager");
+        Assert.notNull(factory, "Primary datasource '" + primary + "' not found in MultiRedisManager");
         return factory;
     }
 
@@ -194,7 +193,7 @@ public class FireworksRedisAutoConfiguration {
                                           MultiRedisProperties multiRedisProperties) {
         String primary = multiRedisProperties.getPrimary();
         RedissonClient client = multiRedisManager.getRedissonMap().get(primary);
-        Objects.requireNonNull(client, "Primary RedissonClient '" + primary + "' not found");
+        Assert.notNull(client, "Primary RedissonClient '" + primary + "' not found");
         return client;
     }
 

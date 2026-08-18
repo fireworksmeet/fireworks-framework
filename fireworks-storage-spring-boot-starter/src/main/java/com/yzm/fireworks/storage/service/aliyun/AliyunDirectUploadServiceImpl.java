@@ -3,7 +3,6 @@ package com.yzm.fireworks.storage.service.aliyun;
 import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
-import com.yzm.fireworks.common.util.TimeUtil;
 import com.yzm.fireworks.storage.exception.StorageException;
 import com.yzm.fireworks.storage.orphan.OrphanCleanupProperties;
 import com.yzm.fireworks.storage.orphan.OrphanFileGuard;
@@ -11,13 +10,13 @@ import com.yzm.fireworks.storage.service.AbstractDirectUploadService;
 import com.yzm.fireworks.storage.service.AbstractStorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.net.URL;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Date;
-import java.util.Objects;
 
 /**
  * 阿里云 OSS 直传凭证实现。
@@ -35,14 +34,14 @@ public class AliyunDirectUploadServiceImpl extends AbstractDirectUploadService {
                                          @Nullable OrphanFileGuard orphanFileGuard,
                                          OrphanCleanupProperties orphanCleanupProperties) {
         super(storageService, orphanFileGuard, orphanCleanupProperties);
-        this.ossClient = Objects.requireNonNull(ossClient, "ossClient 不能为 null");
+        Assert.notNull(ossClient, "ossClient 不能为 null");
+        this.ossClient = ossClient;
     }
 
     @Override
     protected String doIssueCredential(String bucket, String objectKey, String contentType, Duration duration) {
         try {
-            LocalDateTime now = LocalDateTime.now();
-            Date expiration = TimeUtil.toDate(now.plus(duration));
+            Date expiration = Date.from(Instant.now().plus(duration));
 
             // 1. 创建 PUT 方法的预签名请求
             GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, objectKey, HttpMethod.PUT);

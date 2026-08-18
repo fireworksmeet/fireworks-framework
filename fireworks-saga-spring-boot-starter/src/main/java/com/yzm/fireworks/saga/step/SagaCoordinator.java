@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -37,7 +36,7 @@ public class SagaCoordinator {
      * 执行 Saga
      */
     public <T> void execute(SagaContext<T> context) {
-        Objects.requireNonNull(context, "SagaContext can not be null");
+        Assert.notNull(context, "SagaContext can not be null");
         try {
             Map<Integer, List<SagaStep<T>>> sortSteps = context.getSortSteps();
             Executor executor = context.getExecutor();

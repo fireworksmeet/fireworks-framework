@@ -12,8 +12,6 @@ import org.springframework.web.reactive.function.client.support.WebClientAdapter
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 import reactor.core.publisher.Mono;
 
-import java.util.Objects;
-
 /**
  * WebClient HTTP 服务代理工具类
  *
@@ -33,8 +31,8 @@ public class WebClientUtil {
      * @param baseUrl     服务地址（如 "http://fireworks-auth" 或 "https://api.github.com"）
      */
     public static <T> T createProxy(WebClient.Builder builder, Class<T> serviceType, String baseUrl) {
-        Objects.requireNonNull(builder, "builder 不能为空");
-        Objects.requireNonNull(serviceType, "serviceType 不能为空");
+        Assert.notNull(builder, "builder 不能为空");
+        Assert.notNull(serviceType, "serviceType 不能为空");
 
         // 使用 builder.clone() 防止修改传入的共享 builder 对象，造成多 Client 间的 baseUrl 相互污染
         WebClient.Builder clonedBuilder = builder.clone();

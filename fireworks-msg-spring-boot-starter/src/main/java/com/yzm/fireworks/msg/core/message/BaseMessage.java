@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -63,12 +63,12 @@ public abstract class BaseMessage implements Serializable {
     /**
      * 定时发送时间
      */
-    private LocalDateTime scheduledTime;
+    private Instant scheduledAt;
 
     /**
      * 创建时间
      */
-    private LocalDateTime createTime;
+    private Instant createdAt;
 
     /**
      * 是否需要去重

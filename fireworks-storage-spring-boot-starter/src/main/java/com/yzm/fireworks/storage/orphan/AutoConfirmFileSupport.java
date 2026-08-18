@@ -1,13 +1,10 @@
 package com.yzm.fireworks.storage.orphan;
 
+import com.yzm.fireworks.common.util.SpelUtil;
 import com.yzm.fireworks.storage.model.dto.StorageFile;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.BeanFactory;
-import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.context.expression.MethodBasedEvaluationContext;
-import org.springframework.core.DefaultParameterNameDiscoverer;
-import org.springframework.core.ParameterNameDiscoverer;
-import org.springframework.expression.EvaluationContext;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Array;
@@ -25,8 +22,6 @@ import static com.yzm.fireworks.common.constants.StringPool.COLON;
  */
 @Slf4j
 public class AutoConfirmFileSupport {
-
-    private static final ParameterNameDiscoverer PARAMETER_NAME_DISCOVERER = new DefaultParameterNameDiscoverer();
 
     private AutoConfirmFileSupport() {
     }
@@ -49,25 +44,21 @@ public class AutoConfirmFileSupport {
         if (attribute == null || attribute.getObjectKeyExpression() == null) {
             return Collections.emptyList();
         }
-        EvaluationContext context = buildContext(method, args, result, beanFactory);
-        Object value = attribute.getObjectKeyExpression().getValue(context);
+        MethodBasedEvaluationContext context = buildContext(method, args, result, beanFactory);
+        Object value = SpelUtil.evaluate(attribute.getObjectKeyExpression(), context);
         String defaultBucket = attribute.getBucketExpression() != null
-                ? evalToString(attribute.getBucketExpression().getValue(context))
+                ? evalToString(SpelUtil.evaluate(attribute.getBucketExpression(), context))
                 : null;
         return dedupe(toPendingFiles(value, defaultBucket));
     }
 
 
-    private static EvaluationContext buildContext(Method method, Object[] args, Object result, BeanFactory beanFactory) {
+    private static MethodBasedEvaluationContext buildContext(Method method, Object[] args, Object result, BeanFactory beanFactory) {
         // rootObject 传 null：业务通过 #args / #result / 参数名 访问，不使用 #root 根对象。
         // rootObject 参数在 Spring 中标注 @Nullable（官方 javadoc 确认），传 null 是合法且期望的。
-        MethodBasedEvaluationContext context = new MethodBasedEvaluationContext(null, method, args,
-                PARAMETER_NAME_DISCOVERER);
-        context.setVariable("args", args);
-        context.setVariable("result", result);
-        if (beanFactory != null) {
-            context.setBeanResolver(new BeanFactoryResolver(beanFactory));
-        }
+        // createMethodContext 内部已绑定 #args 变量；这里再绑定 #result 供表达式访问。
+        MethodBasedEvaluationContext context = SpelUtil.createMethodContext(null, method, args, beanFactory);
+        SpelUtil.setResult(context, result);
         return context;
     }
 

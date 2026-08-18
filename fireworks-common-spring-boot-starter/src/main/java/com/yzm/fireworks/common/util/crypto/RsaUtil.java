@@ -2,6 +2,7 @@ package com.yzm.fireworks.common.util.crypto;
 
 import com.yzm.fireworks.common.util.Base64Util;
 import com.yzm.fireworks.common.util.crypto.model.RsaKeyPair;
+import lombok.experimental.UtilityClass;
 import org.springframework.util.Assert;
 
 import javax.crypto.Cipher;
@@ -21,7 +22,8 @@ import java.util.Base64;
  *
  * @author JYuan
  */
-public final class RsaUtil {
+@UtilityClass
+public class RsaUtil {
 
     private static final String ALGORITHM = "RSA";
     private static final String TRANSFORMATION = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
@@ -33,10 +35,6 @@ public final class RsaUtil {
             PSource.PSpecified.DEFAULT
     );
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
-    private RsaUtil() {
-        throw new AssertionError("Utility class");
-    }
 
     /**
      * 生成 RSA 密钥对

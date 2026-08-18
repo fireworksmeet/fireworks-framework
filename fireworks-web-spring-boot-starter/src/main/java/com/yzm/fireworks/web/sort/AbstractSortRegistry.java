@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.yzm.fireworks.common.constants.StringPool;
+import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 import java.util.EnumMap;
@@ -86,9 +87,7 @@ public abstract class AbstractSortRegistry<E extends Enum<E>> {
 
     private SortDefinition getDefinition(E type) {
         SortDefinition definition = registry.get(type);
-        if (definition == null) {
-            throw new IllegalArgumentException("不支持的排序类型：" + type);
-        }
+        Assert.notNull(definition, "不支持的排序类型：" + type);
         return definition;
     }
 

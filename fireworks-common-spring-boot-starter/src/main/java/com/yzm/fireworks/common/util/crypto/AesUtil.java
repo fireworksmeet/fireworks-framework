@@ -1,6 +1,7 @@
 package com.yzm.fireworks.common.util.crypto;
 
 import com.yzm.fireworks.common.util.Base64Util;
+import lombok.experimental.UtilityClass;
 import org.springframework.util.Assert;
 
 import javax.crypto.Cipher;
@@ -23,17 +24,14 @@ import java.security.SecureRandom;
  *
  * @author JYuan
  */
-public final class AesUtil {
+@UtilityClass
+public class AesUtil {
 
     private static final String ALGORITHM = "AES";
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int GCM_IV_LENGTH = 12;   // GCM 推荐标准 IV 长度
     private static final int GCM_TAG_LENGTH = 128; // GCM 认证标签长度 (bits)
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
-    private AesUtil() {
-        throw new AssertionError("Utility class");
-    }
 
     /**
      * 生成 AES 对称密钥 (Base64 编码)

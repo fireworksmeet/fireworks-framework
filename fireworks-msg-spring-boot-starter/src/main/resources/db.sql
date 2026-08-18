@@ -16,12 +16,12 @@ CREATE TABLE IF NOT EXISTS message_record
     status              varchar(16)                         NOT NULL,
     error_message       text                                NULL,
     external_message_id varchar(64)                         NULL,
-    send_time           TIMESTAMP                           NULL,
+    send_time           TIMESTAMPTZ                          NULL,
     retry_count         int       DEFAULT 0                 NULL,
     max_retries         int       DEFAULT 3                 NULL,
-    next_retry_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP NULL,
-    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    next_retry_time     TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NULL,
+    created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
 
 COMMENT ON TABLE message_record IS '消息记录表';

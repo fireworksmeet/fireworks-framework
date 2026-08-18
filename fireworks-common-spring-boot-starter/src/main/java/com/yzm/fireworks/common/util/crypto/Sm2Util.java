@@ -2,6 +2,7 @@ package com.yzm.fireworks.common.util.crypto;
 
 import com.yzm.fireworks.common.util.Base64Util;
 import com.yzm.fireworks.common.util.crypto.model.Sm2KeyPair;
+import lombok.experimental.UtilityClass;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.util.Assert;
 
@@ -18,7 +19,8 @@ import java.util.Base64;
  *
  * @author JYuan
  */
-public final class Sm2Util {
+@UtilityClass
+public class Sm2Util {
 
     private static final String PROVIDER_NAME = "BC";
     private static final String ALGORITHM = "EC";
@@ -30,10 +32,6 @@ public final class Sm2Util {
         if (Security.getProvider(PROVIDER_NAME) == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
-    }
-
-    private Sm2Util() {
-        throw new AssertionError("Utility class");
     }
 
     /**

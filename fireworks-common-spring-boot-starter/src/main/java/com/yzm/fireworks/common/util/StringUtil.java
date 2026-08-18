@@ -1,15 +1,12 @@
 package com.yzm.fireworks.common.util;
 
-import com.yzm.fireworks.common.constants.StringPool;
+import lombok.experimental.UtilityClass;
 import org.springframework.util.StringUtils;
 
 import static com.yzm.fireworks.common.constants.StringPool.*;
 
-public final class StrUtil {
-
-    private StrUtil() {
-        throw new AssertionError("Utility class");
-    }
+@UtilityClass
+public class StringUtil {
 
     // ==================== 截断 ====================
 

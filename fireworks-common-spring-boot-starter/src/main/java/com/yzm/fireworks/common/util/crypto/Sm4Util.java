@@ -1,6 +1,7 @@
 package com.yzm.fireworks.common.util.crypto;
 
 import com.yzm.fireworks.common.util.Base64Util;
+import lombok.experimental.UtilityClass;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.util.Assert;
 
@@ -18,7 +19,8 @@ import java.security.Security;
  *
  * @author JYuan
  */
-public final class Sm4Util {
+@UtilityClass
+public class Sm4Util {
 
     private static final String PROVIDER_NAME = "BC";
     private static final String ALGORITHM = "SM4";
@@ -30,10 +32,6 @@ public final class Sm4Util {
         if (Security.getProvider(PROVIDER_NAME) == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
-    }
-
-    private Sm4Util() {
-        throw new AssertionError("Utility class");
     }
 
     /**

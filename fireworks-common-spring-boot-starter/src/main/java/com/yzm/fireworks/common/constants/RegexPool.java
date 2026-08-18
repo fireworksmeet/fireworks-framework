@@ -1,5 +1,7 @@
 package com.yzm.fireworks.common.constants;
 
+import lombok.experimental.UtilityClass;
+
 /**
  * 正则表达式常量池
  * <p>
@@ -10,11 +12,8 @@ package com.yzm.fireworks.common.constants;
  *
  * @author JYuan
  */
-public final class RegexPool {
-
-    private RegexPool() {
-        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-    }
+@UtilityClass
+public class RegexPool {
 
     // ==================== 账号/密码 ====================
 

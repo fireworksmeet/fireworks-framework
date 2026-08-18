@@ -19,8 +19,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.util.Objects;
-
 import static com.yzm.fireworks.common.constants.StringPool.*;
 
 @Configuration
@@ -35,7 +33,7 @@ public class MinioConfiguration {
     @ConditionalOnMissingBean(MinioClient.class)
     public MinioClient minioClient(StorageProperties properties) {
         StorageProperties.Minio minio = properties.getMinio();
-        Objects.requireNonNull(minio, "fireworks.storage.minio 配置不能为空");
+        Assert.notNull(minio, "fireworks.storage.minio 配置不能为空");
         Assert.hasText(minio.getEndpoint(), "fireworks.storage.minio.endpoint 不能为空");
         Assert.hasText(minio.getAccessKey(), "fireworks.storage.minio.access-key 不能为空");
         Assert.hasText(minio.getSecretKey(), "fireworks.storage.minio.secret-key 不能为空");

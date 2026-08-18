@@ -1,15 +1,14 @@
 package com.yzm.fireworks.common.constants;
 
+import lombok.experimental.UtilityClass;
+
 /**
  * 字符串常量池
  *
  * @author JYuan
  */
-public final class StringPool {
-
-    private StringPool() {
-        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-    }
+@UtilityClass
+public class StringPool {
 
     public static final String EMPTY = "";
     public static final String COMMA = ",";

@@ -18,8 +18,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.Assert;
 
-import java.util.Objects;
-
 @Configuration
 @ConditionalOnClass(OSS.class)
 @ConditionalOnProperty(prefix = "fireworks.storage", name = "provider", havingValue = "aliyun")
@@ -29,7 +27,7 @@ public class AliyunConfiguration {
     @ConditionalOnMissingBean(OSS.class)
     public OSS ossClient(StorageProperties properties) {
         StorageProperties.Aliyun aliyun = properties.getAliyun();
-        Objects.requireNonNull(aliyun, "fireworks.storage.aliyun 配置不能为空");
+        Assert.notNull(aliyun, "fireworks.storage.aliyun 配置不能为空");
         Assert.hasText(aliyun.getEndpoint(), "fireworks.storage.aliyun.endpoint 不能为空");
         Assert.hasText(aliyun.getAccessKey(), "fireworks.storage.aliyun.access-key 不能为空");
         Assert.hasText(aliyun.getSecretKey(), "fireworks.storage.aliyun.secret-key 不能为空");

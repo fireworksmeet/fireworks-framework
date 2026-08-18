@@ -2,7 +2,7 @@ package com.yzm.fireworks.web.filter;
 
 import com.google.common.base.Stopwatch;
 import com.yzm.fireworks.common.util.JsonUtil;
-import com.yzm.fireworks.common.util.StrUtil;
+import com.yzm.fireworks.common.util.StringUtil;
 import com.yzm.fireworks.web.config.properties.SystemLogProperties;
 import com.yzm.fireworks.web.handler.RepeatableReadRequestWrapper;
 import jakarta.servlet.FilterChain;
@@ -160,7 +160,7 @@ public class SystemLogFilter extends OncePerRequestFilter {
         }
 
         try {
-            return "params=" + StrUtil.truncate(JsonUtil.stringify(paramMap), properties.getMaxLength());
+            return "params=" + StringUtil.truncate(JsonUtil.stringify(paramMap), properties.getMaxLength());
         } catch (Exception e) {
             return "params=[serialize error]";
         }

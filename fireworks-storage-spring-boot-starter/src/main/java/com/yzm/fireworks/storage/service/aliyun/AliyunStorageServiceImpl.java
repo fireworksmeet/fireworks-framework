@@ -7,17 +7,15 @@ import com.yzm.fireworks.storage.model.dto.StorageFile;
 import com.yzm.fireworks.storage.service.AbstractStorageService;
 import com.yzm.fireworks.storage.config.properties.StorageProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.io.InputStream;
 import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 import static com.yzm.fireworks.common.constants.StringPool.*;
@@ -42,7 +40,8 @@ public class AliyunStorageServiceImpl extends AbstractStorageService {
 
     public AliyunStorageServiceImpl(StorageProperties properties, OSS ossClient) {
         super(properties);
-        this.ossClient = Objects.requireNonNull(ossClient, "ossClient 不能为 null");
+        Assert.notNull(ossClient, "ossClient 不能为 null");
+        this.ossClient = ossClient;
         this.aliyunProperties = properties.getAliyun();
     }
 
@@ -83,8 +82,8 @@ public class AliyunStorageServiceImpl extends AbstractStorageService {
             ObjectMetadata meta = ossClient.getObjectMetadata(bucket, objectKey);
             String fileUrl = getPublicUrl(bucket, objectKey);
 
-            LocalDateTime lastModifiedTime = meta.getLastModified() != null
-                    ? meta.getLastModified().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime()
+            Instant lastModifiedTime = meta.getLastModified() != null
+                    ? meta.getLastModified().toInstant()
                     : null;
 
             StorageFile file = StorageFile.builder()

@@ -46,9 +46,9 @@ private TokenUtil tokenUtil;
 
 ```java
 JWTClaim claim = JWTClaim.builder()
-        .userId(10086L)                       // 用户 ID
-        .exp(Date.from(Instant.now().plus(2, ChronoUnit.HOURS))) // 过期时间
-        .ext(Map.of("role", "admin"))         // 扩展字段（可选）
+        .userId(10086L)                                // 用户 ID
+        .exp(Instant.now().plus(2, ChronoUnit.HOURS))  // 过期时间（绝对时间点 Instant）
+        .ext(Map.of("role", "admin"))                  // 扩展字段（可选）
         .build();
 
 String jwt = tokenUtil.generateJwtToken(claim);
@@ -92,10 +92,10 @@ String token = TokenUtil.generateSecureToken(64);      // 自定义长度（如 
 | `TokenUtil` | `extractTokenOrThrow(HttpServletRequest)` | 提取 Token，无则抛异常 |
 | `TokenUtil` | `generateSecureToken()` | 生成 URL-safe 随机 Token |
 | `TokenUtil` | `TOKEN_PREFIX` / `removePrefixBearer` / `appendPrefixBearer` | Bearer 前缀处理 |
-| `JWTClaim` | 字段 `userId` / `sub` / `exp` / `iat` / `ext` | JWT 载荷对象 |
+| `JWTClaim` | 字段 `userId` / `sub` / `exp` / `iat` / `ext` | JWT 载荷对象；`exp` / `iat` 为 `Instant`（绝对时间点），与 nimbus-jose 的 `Date` 在 `TokenUtil` 内部边界自动转换 |
 
 ## 注意事项
 
-- 项目依赖 `fireworks-common-spring-boot-starter`（`JsonUtil`、`Base64Util`、`StrUtil`）。
+- 项目依赖 `fireworks-common-spring-boot-starter`（`JsonUtil`、`Base64Util`、`StringUtil`）。
 - JWT 使用对称密钥（HS256）签名，`secret` 需妥善保管，不得泄露。
 - 若需实现登录认证拦截，可配合 `fireworks-web-spring-boot-starter` 或自定义 Filter 使用。

@@ -1,6 +1,6 @@
 package com.yzm.fireworks.storage.service;
 
-import com.yzm.fireworks.common.util.TimeUtil;
+import com.yzm.fireworks.common.util.time.InstantUtil;
 import com.yzm.fireworks.storage.model.dto.DirectUploadCredential;
 import com.yzm.fireworks.storage.model.util.ObjectKeyUtil;
 import com.yzm.fireworks.storage.orphan.OrphanCleanupProperties;
@@ -10,7 +10,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 客户端直传凭证服务接口
@@ -40,7 +40,7 @@ public abstract class AbstractDirectUploadService implements DirectUploadService
         Duration effectiveDuration = duration != null ? duration : Duration.ofMinutes(15);
 
         String uploadUrl = doIssueCredential(targetBucket, targetKey, contentType, effectiveDuration);
-        long expireAt = TimeUtil.toEpochSecond(LocalDateTime.now().plus(effectiveDuration));
+        long expireAt = InstantUtil.toEpochSecond(Instant.now().plus(effectiveDuration));
 
         log.info("成功签发 MinIO 直传凭证, bucket={}, object={}, ttlSeconds={}", targetBucket, targetKey, effectiveDuration.getSeconds());
 

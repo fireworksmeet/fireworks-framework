@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ObjectUtils;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+
+import static com.yzm.fireworks.common.constants.StringPool.COMMA;
 
 /**
  * 消息记录服务
@@ -36,18 +38,18 @@ public class MessageRecordService {
         switch (message) {
             case WebSocketMessage wsMsg -> {
                 if (!ObjectUtils.isEmpty(wsMsg.getUserIds())) {
-                    record.setUserId(String.join(",", wsMsg.getUserIds()));
+                    record.setUserId(String.join(COMMA, wsMsg.getUserIds()));
                 }
                 record.setGroupId(wsMsg.getGroupId());
             }
             case EmailMessage emailMsg -> {
                 if (!ObjectUtils.isEmpty(emailMsg.getEmailTo())) {
-                    record.setUserId(String.join(",", emailMsg.getEmailTo()));
+                    record.setUserId(String.join(COMMA, emailMsg.getEmailTo()));
                 }
             }
             case SmsMessage smsMsg -> {
                 if (!ObjectUtils.isEmpty(smsMsg.getPhoneNumbers())) {
-                    record.setUserId(String.join(",", smsMsg.getPhoneNumbers()));
+                    record.setUserId(String.join(COMMA, smsMsg.getPhoneNumbers()));
                 }
             }
             default -> {
@@ -59,8 +61,8 @@ public class MessageRecordService {
         record.setTemplateId(message.getTemplateId());
         record.setStatus(status);
         record.setRetryCount(0);
-        record.setCreatedAt(LocalDateTime.now());
-        record.setUpdatedAt(LocalDateTime.now());
+        record.setCreatedAt(Instant.now());
+        record.setUpdatedAt(Instant.now());
 
         messageRecordMapper.insert(record);
         log.debug("Message record created: messageId={}", message.getMessageId());
@@ -77,7 +79,7 @@ public class MessageRecordService {
                 .set(MessageRecord::getExternalMessageId, result.getExternalMessageId())
                 .set(MessageRecord::getRetryCount, result.getRetryCount())
                 .set(MessageRecord::getSendTime, result.getSendTime())
-                .set(MessageRecord::getUpdatedAt, LocalDateTime.now());
+                .set(MessageRecord::getUpdatedAt, Instant.now());
 
         int updated = messageRecordMapper.update(updateWrapper);
         if (updated > 0) {
@@ -96,7 +98,7 @@ public class MessageRecordService {
         LambdaUpdateWrapper<MessageRecord> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(MessageRecord::getMessageId, messageId)
                 .setSql("retry_count = retry_count + 1")
-                .set(MessageRecord::getUpdatedAt, LocalDateTime.now());
+                .set(MessageRecord::getUpdatedAt, Instant.now());
 
         int updated = messageRecordMapper.update(updateWrapper);
         log.debug("Retry count incremented: messageId={}, updated={}", messageId, updated);

@@ -17,7 +17,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Spring 应用上下文持有者与工具类
@@ -148,7 +147,7 @@ public class SpringContextHolder implements ApplicationContextAware, DisposableB
      * 动态注册 Bean（自动推导首字母小写的类名作为 Bean 名称）
      */
     public static <T> void registerBean(Class<T> clazz) {
-        Objects.requireNonNull(clazz, "Class 不能为 null");
+        Assert.notNull(clazz, "Class 不能为 null");
         String beanName = decapitalize(clazz.getSimpleName());
         registerBean(beanName, clazz, null);
     }
@@ -158,7 +157,7 @@ public class SpringContextHolder implements ApplicationContextAware, DisposableB
      */
     public static <T> void registerBean(String beanName, Class<T> clazz, Map<String, Object> propertyValues, Object... constructorArgs) {
         Assert.hasText(beanName, "beanName 不能为空");
-        Objects.requireNonNull(clazz, "Class 不能为 null");
+        Assert.notNull(clazz, "Class 不能为 null");
         if (!isInitialized()) {
             log.warn("[SpringContextHolder] 容器未初始化，跳过 Bean 注册: {}", beanName);
             return;

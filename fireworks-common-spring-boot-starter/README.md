@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- **工具类**：`JsonUtil`、`SpringContextHolder`、`HashUtil`、`PasswordUtil`、`StrUtil`、`SpelUtil`、`Base64Util`、`TimeUtil`、`ThreadPoolUtil`、`ValidationUtil`。
+- **工具类**：`JsonUtil`、`SpringContextHolder`、`HashUtil`、`PasswordUtil`、`StringUtil`、`SpelUtil`、`Base64Util`、`DateUtil`、`InstantUtil`、`ZoneUtil`、`ThreadPoolUtil`、`ValidationUtil`。
 - **加密算法**：AES-GCM、RSA、国密 SM2 / SM4（`util/crypto` 包）。
 - **数据脱敏**：`@Sensitive` 注解 + Jackson `SensitiveModule`，支持手机号、身份证、银行卡、邮箱等十余种脱敏规则。
 - **Jackson 全局配置**：统一时间格式、BigDecimal 字符串化、未知字段忽略、脱敏模块等。
@@ -116,14 +116,44 @@ boolean isMobile = ValidationUtil.isMobile("13812345678");
 boolean isEmail = ValidationUtil.isEmail("a@b.com");
 ```
 
+### 8.1 时间工具（时区感知）
+
+框架按**时间语义**拆分为三个工具类，避免混用 `LocalDateTime`（墙钟时间、无时区）造成跨时区序列化错乱：
+
+| 工具类 | 适用场景 | 典型类型 |
+| --- | --- | --- |
+| `DateUtil` | 纯本地时间展示 / 计算 | `LocalDateTime` / `LocalDate` / `LocalTime` |
+| `InstantUtil` | 绝对时间点（跨时区一致），落库 / 传输建议使用 | `Instant`，`now` / 转时间戳 / 指数退避 |
+| `ZoneUtil` | 时区换算、偏移量计算 | `ZoneId` / `ZoneOffset` |
+
+```java
+// 业务字段/数据库建议用 Instant（绝对时间点），序列化后含时区偏移，跨服务/跨时区一致
+Instant createdAt = InstantUtil.now();
+
+// 需要按本地时区展示时，再转换为 LocalDateTime
+LocalDateTime local = ZoneUtil.toLocalDateTime(createdAt, ZoneId.of("Asia/Shanghai"));
+
+// 指数退避（重试场景）：第 n 次重试的延迟 / 下次重试时间
+Instant next = InstantUtil.calculateNextRetryTime(attempt, maxRetries, initialDelayMs, maxDelayMs, jitter, Instant.now());
+```
+
 ### 9. Jackson 全局配置
 
 `CommonAutoConfiguration` 自动注册一个 `Jackson2ObjectMapperBuilderCustomizer`（Spring Boot 会收集容器中所有该类型的 Bean 并统一应用），对容器中的 `ObjectMapper` 生效：
 
-- 时间格式统一：`yyyy-MM-dd HH:mm:ss`、`yyyy-MM-dd`、`HH:mm:ss`（`LocalDateTime`/`LocalDate`/`LocalTime`）。
+**基础特性**
+- 禁用时间戳输出（`WRITE_DATES_AS_TIMESTAMPS`）。
+- 反序列化忽略未知字段；空对象序列化不抛异常。
+- 只序列化非空字段（`NON_NULL`）。
+- 允许单引号、非引号属性名、未转义控制字符、反斜杠转义任意字符等宽松解析。
+
+**时间类型（重要）**
+- **不再手动配置任何时间序列化器 / 时区**，统一交由 Jackson `JavaTimeModule` 的**默认实现**按各自 ISO 格式序列化/反序列化。
+- `LocalDateTime` → `2026-08-18T12:30:00`（ISO，无时区）；`Instant` → `2026-08-18T04:30:00Z`（UTC，带 Z）；`OffsetDateTime`/`ZonedDateTime` 含时区偏移。
+- **不设置全局 `TimeZone`**：避免人为给没有时区的时间类型（如 `LocalDateTime`）附加全局时区语义，防止跨时区序列化错乱。
+
+**数值与模块**
 - `BigDecimal` / `BigInteger` 以普通字符串输出（防科学计数法与 JS 精度丢失）。
-- 反序列化忽略未知字段；序列化忽略 null 字段。
-- 允许单引号、非引号属性名、未转义控制字符等宽松解析。
 - 自动注册脱敏模块 `SensitiveModule`。
 
 ## 核心类速览
@@ -135,7 +165,8 @@ boolean isEmail = ValidationUtil.isEmail("a@b.com");
 | `HashUtil` | MD5 / SHA / Hmac 等哈希工具 |
 | `PasswordUtil` | BCrypt 密码加盐哈希与校验 |
 | `AesUtil` / `RsaUtil` / `Sm2Util` / `Sm4Util` | 对称 / 非对称 / 国密加解密 |
-| `StrUtil` / `SpelUtil` / `Base64Util` / `TimeUtil` | 字符串、SpEL、Base64、时间（含指数退避）工具 |
+| `StringUtil` / `SpelUtil` / `Base64Util` | 字符串、SpEL、Base64 工具 |
+| `DateUtil` / `InstantUtil` / `ZoneUtil` | 时间工具：本地时间格式、绝对时间点、时区换算（含指数退避） |
 | `ThreadPoolUtil` | 线程池工厂 |
 | `ValidationUtil` | 常用格式校验 |
 | `@Sensitive` / `SensitiveType` / `SensitiveModule` | 数据脱敏 |

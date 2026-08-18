@@ -87,7 +87,7 @@ public class RedisUtil implements InitializingBean {
         Assert.state(!map.isEmpty(), "Multi-datasource is not enabled. " +
                 "Please set spring.data.redis.multi.enabled=true");
         RedisContext ctx = map.get(datasource);
-        Objects.requireNonNull(ctx, "Redis datasource '" + datasource + "' not found. " +
+        Assert.notNull(ctx, "Redis datasource '" + datasource + "' not found. " +
                 "Available: " + map.keySet());
         return ctx;
     }
@@ -606,7 +606,7 @@ public class RedisUtil implements InitializingBean {
     // ==================== 私有工具 ====================
 
     private static RedisUtil instance() {
-        Objects.requireNonNull(INSTANCE, "RedisUtil is not initialized yet. " +
+        Assert.notNull(INSTANCE, "RedisUtil is not initialized yet. " +
                 "Ensure FireworksRedisAutoConfiguration is loaded before calling static methods.");
         return INSTANCE;
     }

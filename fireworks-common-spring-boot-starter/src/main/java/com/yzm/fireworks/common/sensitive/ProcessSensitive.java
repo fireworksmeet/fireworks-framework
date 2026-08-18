@@ -1,6 +1,6 @@
 package com.yzm.fireworks.common.sensitive;
 
-import com.yzm.fireworks.common.util.StrUtil;
+import com.yzm.fireworks.common.util.StringUtil;
 
 
 /**
@@ -23,13 +23,13 @@ public interface ProcessSensitive {
      * @return 脱敏后的字符串；若参数非法或字符串为空则返回原值
      */
     default String hide(String str, int start, int end) {
-        return StrUtil.mask(str, start, end);
+        return StringUtil.mask(str, start, end);
     }
 
     /**
      * 将整个字符串替换为等长 '*'（常用于密码场景）
      */
     default String hideAll(String str) {
-        return StrUtil.maskAll(str);
+        return StringUtil.maskAll(str);
     }
 }

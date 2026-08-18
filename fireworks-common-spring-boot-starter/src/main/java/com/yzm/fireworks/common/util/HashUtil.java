@@ -1,5 +1,6 @@
 package com.yzm.fireworks.common.util;
 
+import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.util.Assert;
 
@@ -7,7 +8,6 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
-import java.util.Objects;
 
 /**
  * 哈希工具类（不可逆）
@@ -27,13 +27,10 @@ import java.util.Objects;
  *
  * @author JYuan
  */
-public final class HashUtil {
+@UtilityClass
+public class HashUtil {
 
     private static final String HMAC_SHA256 = "HmacSHA256";
-
-    private HashUtil() {
-        throw new AssertionError("Utility class");
-    }
 
     // ── 一、固定盐哈希 ─────────────────────────────────────────────────────
 
@@ -96,7 +93,7 @@ public final class HashUtil {
      * @return 十六进制哈希字符串，长度固定 64 位
      */
     public static String sha256(byte[] bytes) {
-        Objects.requireNonNull(bytes, "bytes must not be null");
+        Assert.notNull(bytes, "bytes must not be null");
         return DigestUtils.sha256Hex(bytes);
     }
 }

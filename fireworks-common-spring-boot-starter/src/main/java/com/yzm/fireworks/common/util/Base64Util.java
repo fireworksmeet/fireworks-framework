@@ -1,5 +1,7 @@
 package com.yzm.fireworks.common.util;
 
+import lombok.experimental.UtilityClass;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -12,17 +14,14 @@ import java.util.Base64;
  *
  * @author JYuan
  */
-public final class Base64Util {
+@UtilityClass
+public class Base64Util {
 
     private static final Base64.Encoder BASIC_ENCODER = Base64.getEncoder();
     private static final Base64.Decoder BASIC_DECODER = Base64.getDecoder();
 
     private static final Base64.Encoder URL_ENCODER_NO_PADDING = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder URL_DECODER = Base64.getUrlDecoder();
-
-    private Base64Util() {
-        throw new AssertionError("Utility class");
-    }
 
     // ── Standard Base64 (常用在密钥、报文、文件传输) ─────────────────────────
 

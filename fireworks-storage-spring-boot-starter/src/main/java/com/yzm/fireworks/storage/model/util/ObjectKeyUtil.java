@@ -1,12 +1,12 @@
 package com.yzm.fireworks.storage.model.util;
 
 import com.yzm.fireworks.common.constants.StringPool;
+import lombok.experimental.UtilityClass;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -23,7 +23,8 @@ import java.util.regex.Pattern;
  * ObjectKeyUtil.normalizeObjectKey("/avatar//2026/01.png"); // avatar/2026/01.png
  * }</pre>
  */
-public final class ObjectKeyUtil {
+@UtilityClass
+public class ObjectKeyUtil {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
@@ -35,10 +36,6 @@ public final class ObjectKeyUtil {
     private static final Pattern LEADING_SLASH = Pattern.compile("^/+");
     /** 连续多个斜杠，用于归一化压缩为单个斜杠 {@code /}。 */
     private static final Pattern MULTIPLE_SLASHES = Pattern.compile("/{2,}");
-
-    private ObjectKeyUtil() {
-        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-    }
 
     // ─── 1. 业务 ObjectKey 生成方法 ───────────────────────────────────────
 
@@ -61,7 +58,7 @@ public final class ObjectKeyUtil {
      * 示例：avatar/users/10086/c8f9d0a1b2c3.jpg
      */
     public static String buildEntityKey(String bizPrefix, Object entityId, String originalFilename) {
-        Objects.requireNonNull(entityId, "entityId cannot be null");
+        Assert.notNull(entityId, "entityId cannot be null");
         String ext = getFileExtension(originalFilename);
         String uuid = uuid();
         String subPath = entityId + StringPool.SLASH + uuid + suffix(ext);

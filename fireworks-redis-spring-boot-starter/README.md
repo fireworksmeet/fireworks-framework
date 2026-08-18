@@ -98,7 +98,7 @@ public void processOrder(Long orderId) { ... }
 | 属性 | 说明 | 默认值 |
 | --- | --- | --- |
 | `prefixKey` | key 前缀，缺省为方法全限定名 | 方法全限定名 |
-| `key` | SpEL 表达式，可用方法参数，最终 key = `prefixKey:值` | 空 |
+| `key` | SpEL 表达式（基于方法参数上下文），最终 key = `prefixKey:值`。可用参数名（`#orderId`）、位置（`#args[0]`、`#p0`）等 | 空 |
 | `waitTime` | 等待锁的最长时间，期间获取不到则报错 | `60` |
 | `unit` | 等待时间单位 | `SECONDS` |
 | `datasource` | 锁所在的 Redis 数据源名称，留空用 primary | 空 |

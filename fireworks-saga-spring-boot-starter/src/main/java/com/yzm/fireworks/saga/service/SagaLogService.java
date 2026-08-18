@@ -3,7 +3,7 @@ package com.yzm.fireworks.saga.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
 import com.yzm.fireworks.common.util.JsonUtil;
-import com.yzm.fireworks.common.util.TimeUtil;
+import com.yzm.fireworks.common.util.time.InstantUtil;
 import com.yzm.fireworks.saga.SagaLog;
 import com.yzm.fireworks.saga.SagaProperties;
 import com.yzm.fireworks.saga.SagaStatus;
@@ -15,8 +15,7 @@ import org.springframework.core.ResolvableType;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
@@ -43,7 +42,7 @@ public class SagaLogService {
                 .status(SagaStatus.EXECUTING)
                 .retryCount(0) // 初始重试次数为 0 (主流设计)
                 .maxRetries(properties.getMaxRetries())
-                .nextRetryTime(LocalDateTime.now().plus(properties.getExecutingTimeout(), ChronoUnit.MILLIS))
+                .nextRetryTime(Instant.now().plusMillis(properties.getExecutingTimeout()))
                 .param(serialize(param))
                 .build();
         return SqlHelper.retBool(sagaLogMapper.insert(sagaLog));
@@ -53,8 +52,10 @@ public class SagaLogService {
         return sagaLogMapper.selectList(Wrappers.<SagaLog>lambdaQuery().eq(SagaLog::getSagaId, sagaId));
     }
 
-    public LocalDateTime calculateNextRetryTime(int retryCount) {
-        return TimeUtil.calculateNextRetryTime(retryCount, properties.getMaxRetries(), properties.getInitialDelayMs(), properties.getMaxDelayMs(), properties.getJitterFactor(), LocalDateTime.now());
+    public Instant calculateNextRetryTime(int retryCount) {
+        return InstantUtil.calculateNextRetryTime(
+                retryCount + 1, properties.getMaxRetries(), properties.getInitialDelayMs(),
+                properties.getMaxDelayMs(), properties.getJitterFactor(), Instant.now());
     }
 
     public boolean updateSucceeded(String sagaId) {
@@ -69,7 +70,7 @@ public class SagaLogService {
                 .eq(SagaLog::getStepName, stepName)
                 .eq(SagaLog::getStatus, SagaStatus.EXECUTING)
                 .set(SagaLog::getStatus, SagaStatus.SUCCEEDED)
-                .set(SagaLog::getUpdatedAt, LocalDateTime.now())));
+                .set(SagaLog::getUpdatedAt, Instant.now())));
     }
 
     public boolean updateById(SagaLog sagaLog) {
@@ -85,8 +86,8 @@ public class SagaLogService {
                 .eq(SagaLog::getStatus, fromStatus)
                 .set(SagaLog::getStatus, toStatus)
                 .setSql(toStatus == SagaStatus.COMPENSATING, "retry_count = retry_count + 1")
-                .set(toStatus == SagaStatus.COMPENSATING, SagaLog::getNextRetryTime, LocalDateTime.now().plus(properties.getExecutingTimeout(), ChronoUnit.MILLIS))
-                .set(SagaLog::getUpdatedAt, LocalDateTime.now())));
+                .set(toStatus == SagaStatus.COMPENSATING, SagaLog::getNextRetryTime, Instant.now().plusMillis(properties.getExecutingTimeout()))
+                .set(SagaLog::getUpdatedAt, Instant.now())));
     }
 
     /**
@@ -98,8 +99,8 @@ public class SagaLogService {
                 .in(SagaLog::getStatus, fromStatuses)
                 .set(SagaLog::getStatus, toStatus)
                 .setSql(toStatus == SagaStatus.COMPENSATING, "retry_count = retry_count + 1")
-                .set(toStatus == SagaStatus.COMPENSATING, SagaLog::getNextRetryTime, LocalDateTime.now().plus(properties.getExecutingTimeout(), ChronoUnit.MILLIS))
-                .set(SagaLog::getUpdatedAt, LocalDateTime.now())));
+                .set(toStatus == SagaStatus.COMPENSATING, SagaLog::getNextRetryTime, Instant.now().plusMillis(properties.getExecutingTimeout()))
+                .set(SagaLog::getUpdatedAt, Instant.now())));
     }
 
     /**
@@ -111,8 +112,8 @@ public class SagaLogService {
                 .eq(SagaLog::getStepName, stepName)
                 .set(SagaLog::getStatus, SagaStatus.FAILED)
                 .set(SagaLog::getErrorMsg, errorMsg)
-                .set(SagaLog::getNextRetryTime, LocalDateTime.now().plus(properties.getExecutingTimeout(), ChronoUnit.MILLIS))
-                .set(SagaLog::getUpdatedAt, LocalDateTime.now()));
+                .set(SagaLog::getNextRetryTime, Instant.now().plusMillis(properties.getExecutingTimeout()))
+                .set(SagaLog::getUpdatedAt, Instant.now()));
     }
 
     /**
@@ -124,11 +125,11 @@ public class SagaLogService {
                 .set(SagaLog::getStatus, SagaStatus.FAILED)
                 .set(SagaLog::getErrorMsg, errorMsg)
                 .set(SagaLog::getNextRetryTime, calculateNextRetryTime(retryAttemptForDelay))
-                .set(SagaLog::getUpdatedAt, LocalDateTime.now()));
+                .set(SagaLog::getUpdatedAt, Instant.now()));
     }
 
     public void recoveryCompensate() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         // 1. 查找存在异常步骤（FAILED / EXECUTING / COMPENSATING 且已超时）的 sagaId 列表
         List<SagaLog> staledLogs = sagaLogMapper.selectList(Wrappers.<SagaLog>lambdaQuery()
@@ -154,11 +155,11 @@ public class SagaLogService {
         boolean locked = SqlHelper.retBool(sagaLogMapper.update(Wrappers.<SagaLog>lambdaUpdate()
                 .eq(SagaLog::getSagaId, sagaId)
                 .in(SagaLog::getStatus, SagaStatus.EXECUTING, SagaStatus.FAILED, SagaStatus.COMPENSATING)
-                .le(SagaLog::getNextRetryTime, LocalDateTime.now()) // 二次 CAS 验证依然超时
+                .le(SagaLog::getNextRetryTime, Instant.now()) // 二次 CAS 验证依然超时
                 .set(SagaLog::getStatus, SagaStatus.COMPENSATING)
                 .setSql("retry_count = retry_count + 1") // 发生重试时增加次数
-                .set(SagaLog::getNextRetryTime, LocalDateTime.now().plus(properties.getExecutingTimeout(), ChronoUnit.MILLIS))
-                .set(SagaLog::getUpdatedAt, LocalDateTime.now())));
+                .set(SagaLog::getNextRetryTime, Instant.now().plusMillis(properties.getExecutingTimeout()))
+                .set(SagaLog::getUpdatedAt, Instant.now())));
 
         if (!locked) {
             return;

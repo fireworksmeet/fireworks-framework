@@ -1,6 +1,7 @@
 package com.yzm.fireworks.api.util;
 
 import com.yzm.fireworks.common.util.Base64Util;
+import lombok.experimental.UtilityClass;
 import org.springframework.util.StringUtils;
 
 import static com.yzm.fireworks.common.constants.StringPool.UNDERSCORE;
@@ -10,12 +11,8 @@ import static com.yzm.fireworks.common.constants.StringPool.UNDERSCORE;
  *
  * @author JYuan
  */
+@UtilityClass
 public class CursorUtil {
-
-    private CursorUtil() {
-        // 私有构造，禁止实例化
-        throw new AssertionError("Utility class");
-    }
 
     /**
      * 构建复合游标（如：时间戳 + ID）

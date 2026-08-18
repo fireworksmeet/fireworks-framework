@@ -12,7 +12,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 消息发送记录实体
@@ -109,22 +109,22 @@ public class MessageRecord implements Serializable {
     /**
      * 下次重试时间
      */
-    private LocalDateTime nextRetryTime;
+    private Instant nextRetryTime;
 
     /**
      * 发送时间
      */
-    private LocalDateTime sendTime;
+    private Instant sendTime;
 
     /**
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     /**
      * 更新时间
      */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 }

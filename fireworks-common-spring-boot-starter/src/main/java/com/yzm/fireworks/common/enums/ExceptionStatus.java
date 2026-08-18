@@ -1,5 +1,7 @@
 package com.yzm.fireworks.common.enums;
 
+import org.springframework.util.Assert;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -43,9 +45,7 @@ public interface ExceptionStatus {
         Set<Integer> codeSet = new HashSet<>();
         for (T value : values) {
             int code = value.getCode();
-            if (!codeSet.add(code)) {
-                throw new IllegalArgumentException(value.getClass().getName() + "存在重复状态码: " + code);
-            }
+            Assert.isTrue(codeSet.add(code), value.getClass().getName() + "存在重复状态码: " + code);
         }
     }
 }

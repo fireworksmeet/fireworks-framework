@@ -17,7 +17,6 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -47,8 +46,10 @@ public class MinioStorageServiceImpl extends AbstractStorageService implements S
             MinioClient minioClient,
             MinioClient presignClient) {
         super(properties);
-        this.minioClient = Objects.requireNonNull(minioClient, "minioClient 不能为 null");
-        this.presignClient = Objects.requireNonNull(presignClient, "presignClient 不能为 null");
+        Assert.notNull(minioClient, "minioClient 不能为 null");
+        Assert.notNull(presignClient, "presignClient 不能为 null");
+        this.minioClient = minioClient;
+        this.presignClient = presignClient;
         this.minioProperties = properties.getMinio();
     }
 
@@ -113,7 +114,7 @@ public class MinioStorageServiceImpl extends AbstractStorageService implements S
                     .size(stat.size())
                     .contentType(stat.contentType())
                     .etag(stat.etag())
-                    .lastModified(stat.lastModified() != null ? stat.lastModified().toLocalDateTime() : null)
+                    .lastModified(stat.lastModified() != null ? stat.lastModified().toInstant() : null)
                     .build();
             return Optional.of(file);
         } catch (Exception e) {

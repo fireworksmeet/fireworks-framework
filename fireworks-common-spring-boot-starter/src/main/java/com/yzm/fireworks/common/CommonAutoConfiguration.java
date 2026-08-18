@@ -10,12 +10,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalTimeDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalTimeSerializer;
 import com.yzm.fireworks.common.decorator.MdcTaskDecorator;
 import com.yzm.fireworks.common.sensitive.SensitiveModule;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -29,17 +23,14 @@ import org.springframework.util.ObjectUtils;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.TimeZone;
-
-import static com.yzm.fireworks.common.util.TimeUtil.*;
 
 /**
  * 通用基础自动配置。
  * <p>
- * 提供 MDC 上下文传递、Jackson 全局序列化定制（时间格式、BigDecimal 字符串化、脱敏模块）等 common 基础设施。
+ * 提供 MDC 上下文传递、Jackson 全局序列化定制（宽松解析、BigDecimal 字符串化、脱敏模块）等 common 基础设施。
+ * <p>
+ * 说明：时间类型（LocalDateTime / Instant / OffsetDateTime 等）不在此处手动配置，统一交由
+ * JavaTimeModule 默认实现按 ISO 格式序列化，且不设置全局 TimeZone，避免给无时区类型附加时区语义。
  *
  * @author JYuan
  */
@@ -66,8 +57,7 @@ public class CommonAutoConfiguration {
     public Jackson2ObjectMapperBuilderCustomizer jackson2ObjectMapperBuilderCustomizer() {
         return builder -> {
             // 基础配置
-            builder.simpleDateFormat(DEFAULT_DATE_TIME_FORMAT)
-                    .timeZone(TimeZone.getTimeZone("Asia/Shanghai"))
+            builder
                     // 禁用时间戳格式
                     .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                     // 允许反序列化时，忽略未知字段
@@ -87,13 +77,22 @@ public class CommonAutoConfiguration {
                     // 只序列化不为空的字段
                     .serializationInclusion(JsonInclude.Include.NON_NULL);
 
-            // Java8 时间类配置
-            builder.serializerByType(LocalDateTime.class, new LocalDateTimeSerializer(FORMATTER_DATE_TIME))
-                    .serializerByType(LocalDate.class, new LocalDateSerializer(FORMATTER_DATE))
-                    .serializerByType(LocalTime.class, new LocalTimeSerializer(FORMATTER_TIME))
-                    .deserializerByType(LocalDateTime.class, new LocalDateTimeDeserializer(FORMATTER_DATE_TIME))
-                    .deserializerByType(LocalDate.class, new LocalDateDeserializer(FORMATTER_DATE))
-                    .deserializerByType(LocalTime.class, new LocalTimeDeserializer(FORMATTER_TIME));
+            // ============================================================
+            // 不再手动配置：
+            //
+            // LocalDate
+            // LocalTime
+            // LocalDateTime
+            // Instant
+            //
+            // 统一使用 Jackson JavaTimeModule 默认实现。
+            //
+            // 同时不设置：
+            //
+            // TimeZone
+            //
+            // 避免人为给没有时区的时间类型附加全局时区语义。
+            // ============================================================
 
             // 配置 BigDecimal / BigInteger 以普通字符串输出，防止科学计数法和 JS 精度丢失
             SimpleModule simpleModule = new SimpleModule()

@@ -1,5 +1,6 @@
 package com.yzm.fireworks.common.util;
 
+import lombok.experimental.UtilityClass;
 import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.util.Assert;
 
@@ -19,17 +20,14 @@ import org.springframework.util.Assert;
  *
  * @author JYuan
  */
-public final class PasswordUtil {
+@UtilityClass
+public class PasswordUtil {
 
     /**
      * cost=12：加密一次约 300ms，兼顾安全性与性能。
      * cost=10 是 jbcrypt 常用默认值，约 100ms，可根据服务器性能调整，建议不低于 10。
      */
     private static final int COST = 12;
-
-    private PasswordUtil() {
-        throw new AssertionError("Utility class");
-    }
 
     /**
      * 加密密码

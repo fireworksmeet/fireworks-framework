@@ -5,6 +5,7 @@ import com.yzm.fireworks.redis.RedisUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.util.Assert;
 
 import java.util.Collections;
 import java.util.Map;
@@ -57,10 +58,8 @@ public class LockService {
      */
     public LockService on(String datasource) {
         RedissonClient client = clientMap.get(datasource);
-        if (client == null) {
-            throw new IllegalArgumentException(
-                    "Unknown Redis datasource for lock: '" + datasource + "'. Available: " + clientMap.keySet());
-        }
+        Assert.notNull(client,
+                "Unknown Redis datasource for lock: '" + datasource + "'. Available: " + clientMap.keySet());
         return new LockService(client, clientMap);
     }
 

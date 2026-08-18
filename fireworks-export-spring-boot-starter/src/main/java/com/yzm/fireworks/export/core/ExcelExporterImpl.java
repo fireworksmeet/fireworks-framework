@@ -27,7 +27,6 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Objects;
 
 import static com.yzm.fireworks.common.constants.StringPool.UNDERSCORE;
 import static com.yzm.fireworks.export.model.util.ExcelWebUtil.uuid;
@@ -81,7 +80,7 @@ public class ExcelExporterImpl implements ExcelExporter {
     @Override
     public <Q> StorageFile exportToStorage(ExportContext<Q> context, ExcelService<Q> excelService) {
         validateContext(context);
-        Objects.requireNonNull(storageService, "StorageService 未注入，无法使用上传存储服务");
+        Assert.notNull(storageService, "StorageService 未注入，无法使用上传存储服务");
 
         Path targetDir = getExportDirectory();
         String uniqueFileName = context.getFileName() + UNDERSCORE + uuid() + ".xlsx";
@@ -117,10 +116,10 @@ public class ExcelExporterImpl implements ExcelExporter {
     }
 
     private void validateContext(ExportContext<?> context) {
-        Objects.requireNonNull(context, "ExportContext 不能为 null");
+        Assert.notNull(context, "ExportContext 不能为 null");
         Assert.hasText(context.getFileName(), "文件名不能为空");
         Assert.hasText(context.getSheetName(), "Sheet 名称不能为空");
-        Objects.requireNonNull(context.getDataClass(), "DataClass 不能为 null");
+        Assert.notNull(context.getDataClass(), "DataClass 不能为 null");
     }
 
     private Path getExportDirectory() {

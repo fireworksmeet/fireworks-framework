@@ -7,6 +7,7 @@ import com.yzm.fireworks.msg.properties.MessageProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -106,11 +107,8 @@ public class WebSocketSender implements MessageSender<WebSocketMessage> {
         long byteLength = result.getBytes(StandardCharsets.UTF_8).length;
 
         int nchanMaxChannelIdLength = properties.getWebsocket().getNchanMaxChannelIdLength();
-        if (byteLength > nchanMaxChannelIdLength) {
-            throw new IllegalArgumentException(
-                    String.format("Concatenated user ID string in WebSocket message exceeds maximum length %d bytes", nchanMaxChannelIdLength)
-            );
-        }
+        Assert.isTrue(byteLength <= nchanMaxChannelIdLength,
+                String.format("Concatenated user ID string in WebSocket message exceeds maximum length %d bytes", nchanMaxChannelIdLength));
 
         return result;
     }

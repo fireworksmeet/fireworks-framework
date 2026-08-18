@@ -6,11 +6,11 @@ CREATE TABLE IF NOT EXISTS saga_log
     status          varchar(32)                         NOT NULL,
     retry_count     int       DEFAULT 0                 NULL,
     max_retries     int       DEFAULT 0                 NULL,
-    next_retry_time timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+    next_retry_time timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
     error_msg       text                                NULL,
     param           text                                NULL,
-    created_at      timestamp DEFAULT CURRENT_TIMESTAMP NULL,
-    updated_at      timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+    created_at      timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+    updated_at      timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
     CONSTRAINT pk_saga_log PRIMARY KEY (id)
     );
 

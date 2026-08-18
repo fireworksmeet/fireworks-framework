@@ -44,6 +44,8 @@ private DirectUploadService directUploadService;
 ```
 
 - `StorageService`：服务端上传/删除/获取访问地址。
+  - 上传成功后返回 `StorageFile` 元数据对象，其中 `lastModified`（最后修改时间）为 **`Instant`（绝对时间点）**，
+    跨时区 / 跨服务保持一致；如需按本地时区展示，可用 `ZoneUtil` 转换为 `LocalDateTime`。
   - 上传策略完全交给各 Provider SDK 自身实现，本框架不再手写任何分片/并发逻辑：
     - **File 上传**：Aliyun 使用 `ossClient.uploadFile()`（断点续传上传），SDK 自行判断是否分片、自行并发，
       并通过本地 `<file>.ucp` checkpoint 文件支持断点续传——上传中断后重新调用同一文件可自动跳过已完成的分片；

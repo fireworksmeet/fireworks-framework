@@ -8,7 +8,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.yzm.fireworks.common.util.Base64Util;
 import com.yzm.fireworks.common.util.JsonUtil;
-import com.yzm.fireworks.common.util.StrUtil;
+import com.yzm.fireworks.common.util.StringUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -16,8 +16,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
+import java.util.Date;
 import java.util.Map;
-import java.util.Objects;
 
 import static com.yzm.fireworks.common.constants.StringPool.SPACE;
 
@@ -53,7 +53,7 @@ public class TokenUtil {
      * @return Token字符串，如果不存在则返回null
      */
     public static String extractToken(HttpServletRequest request) {
-        Objects.requireNonNull(request, "request must not be null");
+        Assert.notNull(request, "request must not be null");
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (!StringUtils.hasText(authorization)) {
             return null;
@@ -96,7 +96,7 @@ public class TokenUtil {
         if (!StringUtils.hasText(token)) {
             return null;
         }
-        return StrUtil.removePrefix(token, TOKEN_PREFIX + SPACE).trim();
+        return StringUtil.removePrefix(token, TOKEN_PREFIX + SPACE).trim();
     }
 
     public static String appendPrefixBearer(String token) {
@@ -121,12 +121,15 @@ public class TokenUtil {
      * 生成JWT类型Token
      */
     public String generateJwtToken(JWTClaim jwtClaim) {
-        Objects.requireNonNull(jwtClaim, "jwtClaim must not be null");
+        Assert.notNull(jwtClaim, "jwtClaim must not be null");
+        // nimbus-jose 的 JWTClaimsSet.Builder 要求 java.util.Date，这里在外部库边界做转换
+        Date exp = jwtClaim.getExp() != null ? Date.from(jwtClaim.getExp()) : null;
+        Date iat = jwtClaim.getIat() != null ? Date.from(jwtClaim.getIat()) : null;
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .claim(jwtProperties.getUserIdKey(), jwtClaim.getUserId())
                 .claim(jwtProperties.getExtKey(), jwtClaim.getExt())
                 .subject(jwtClaim.getSub()).issuer(jwtProperties.getIss()).audience(jwtProperties.getAud())
-                .expirationTime(jwtClaim.getExp()).issueTime(jwtClaim.getIat()).notBeforeTime(jwtClaim.getIat())
+                .expirationTime(exp).issueTime(iat).notBeforeTime(iat)
                 .build();
         SignedJWT jwt = new SignedJWT(this.jwsHeader, claimsSet);
         try {
@@ -147,7 +150,16 @@ public class TokenUtil {
         } catch (Exception e) {
             throw new TokenException("Failed to parse JWT token", e);
         }
+
+        // nimbus-jose 的 exp/iat 以 java.util.Date 存储，这里在外部库边界转换为时区感知的 Instant
+        Date exp = jwtClaimsSet.getExpirationTime();
+        Date iat = jwtClaimsSet.getIssueTime();
+
         Map<String, Object> object = jwtClaimsSet.getClaims();
-        return JsonUtil.convertValue(object, JWTClaim.class);
+
+        JWTClaim claim = JsonUtil.convertValue(object, JWTClaim.class);
+        claim.setExp(exp != null ? exp.toInstant() : null);
+        claim.setIat(iat != null ? iat.toInstant() : null);
+        return claim;
     }
 }

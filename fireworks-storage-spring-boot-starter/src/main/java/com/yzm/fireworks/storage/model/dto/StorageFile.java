@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -39,6 +39,6 @@ public class StorageFile implements Serializable {
     /** 用户自定义元数据 (X-Amz-Meta-* / X-Oss-Meta-*) */
     private Map<String, String> userMetadata;
 
-    /** 最后修改时间 */
-    private LocalDateTime lastModified;
+    /** 最后修改时间（绝对时间点，跨时区一致） */
+    private Instant lastModified;
 }
