@@ -1,15 +1,21 @@
 package com.yzm.fireworks.storage.orphan;
 
-import com.yzm.fireworks.common.util.SpelUtil;
+import com.yzm.fireworks.common.expression.SpelEvaluator;
 import com.yzm.fireworks.storage.model.dto.StorageFile;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.BeanFactory;
-import org.springframework.context.expression.MethodBasedEvaluationContext;
+import org.springframework.context.expression.AnnotatedElementKey;
+import org.springframework.expression.EvaluationContext;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 import static com.yzm.fireworks.common.constants.StringPool.COLON;
 
@@ -19,9 +25,17 @@ import static com.yzm.fireworks.common.constants.StringPool.COLON;
  * <p>
  * 规约覆盖三种主流形态：前端直传后传给后端保存的 {@code String} 或 {@code String} 集合/数组，
  * 以及后端上传返回的 {@link StorageFile}（携带 bucket 与 objectKey）。不做反射猜测，行为完全可预期。
+ * <p>
+ * SpEL 求值复用 common 的 {@link SpelEvaluator}，表达式解析结果由其内部缓存，
+ * 本类不持有任何 {@code Expression}。
  */
 @Slf4j
-public class AutoConfirmFileSupport {
+public final class AutoConfirmFileSupport {
+
+    /**
+     * 求值器：持有表达式缓存，故设计为实例常量长期复用
+     */
+    private static final SpelEvaluator EVALUATOR = new SpelEvaluator();
 
     private AutoConfirmFileSupport() {
     }
@@ -35,31 +49,27 @@ public class AutoConfirmFileSupport {
      * @param attribute   元数据（含 bucket / objectKey SpEL 表达式）
      * @param method      被代理方法
      * @param args        方法参数
-     * @param result      方法返回值（可通过 {@code #result} 访问，如后端上传返回的 {@code StorageFile}）
+     * @param result      方法返回值（可通过 {@code #_result} 访问，如后端上传返回的 {@code StorageFile}）
      * @param beanFactory 可选，用于 SpEL 中引用 Bean
      * @return 去重后的待确认文件（bucket 可能为空，表示无法确定桶名，调用方需处理）
      */
     public static List<OrphanFile> resolve(AutoConfirmFileAttribute attribute, Method method, Object[] args,
                                            Object result, BeanFactory beanFactory) {
-        if (attribute == null || attribute.getObjectKeyExpression() == null) {
+        if (attribute == null || !StringUtils.hasText(attribute.getObjectKey())) {
             return Collections.emptyList();
         }
-        MethodBasedEvaluationContext context = buildContext(method, args, result, beanFactory);
-        Object value = SpelUtil.evaluate(attribute.getObjectKeyExpression(), context);
-        String defaultBucket = attribute.getBucketExpression() != null
-                ? evalToString(SpelUtil.evaluate(attribute.getBucketExpression(), context))
+        EvaluationContext context = buildContext(method, args, result, beanFactory);
+        AnnotatedElementKey methodKey = EVALUATOR.methodKey(method, method.getDeclaringClass());
+
+        Object value = EVALUATOR.evaluate(attribute.getObjectKey(), methodKey, context);
+        String defaultBucket = StringUtils.hasText(attribute.getBucket())
+                ? evalToString(EVALUATOR.evaluate(attribute.getBucket(), methodKey, context))
                 : null;
         return dedupe(toPendingFiles(value, defaultBucket));
     }
 
-
-    private static MethodBasedEvaluationContext buildContext(Method method, Object[] args, Object result, BeanFactory beanFactory) {
-        // rootObject 传 null：业务通过 #args / #result / 参数名 访问，不使用 #root 根对象。
-        // rootObject 参数在 Spring 中标注 @Nullable（官方 javadoc 确认），传 null 是合法且期望的。
-        // createMethodContext 内部已绑定 #args 变量；这里再绑定 #result 供表达式访问。
-        MethodBasedEvaluationContext context = SpelUtil.createMethodContext(null, method, args, beanFactory);
-        SpelUtil.setResult(context, result);
-        return context;
+    private static EvaluationContext buildContext(Method method, Object[] args, Object result, BeanFactory beanFactory) {
+        return EVALUATOR.createContext(method, args, method.getDeclaringClass(), result, null, beanFactory);
     }
 
     private static String evalToString(Object value) {
@@ -99,7 +109,7 @@ public class AutoConfirmFileSupport {
             }
         } else {
             log.warn("@AutoConfirmFile 解析结果不是 StorageFile / String 或其集合/数组，已忽略。"
-                    + "objectKey 表达式应指向 StorageFile、String 或 List<String>，当前类型: {}",
+                            + "objectKey 表达式应指向 StorageFile、String 或 List<String>，当前类型: {}",
                     value.getClass().getName());
         }
         return files;

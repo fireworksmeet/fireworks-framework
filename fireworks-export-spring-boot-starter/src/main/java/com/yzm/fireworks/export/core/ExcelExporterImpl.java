@@ -13,7 +13,6 @@ import com.yzm.fireworks.storage.model.dto.StorageFile;
 import com.yzm.fireworks.storage.model.util.ObjectKeyUtil;
 import com.yzm.fireworks.storage.service.StorageService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
@@ -43,17 +42,25 @@ public class ExcelExporterImpl implements ExcelExporter {
     private final ExportProperties exportProperties;
     private final StorageService storageService;
 
-    @Value("${spring.application.name:fireworks-export}")
-    private String applicationName;
+    /**
+     * 应用名，取值自 {@code spring.application.name}，用于生成导出文件的 objectKey。
+     * <p>
+     * 由 {@code ExportAutoConfiguration} 在创建本 Bean 时注入，而非使用字段上的
+     * {@code @Value}：本实例由 {@code @Bean} 方法手动 {@code new} 构造，
+     * 统一通过构造器传入依赖可保证「构造器即完整契约」、字段可声明为 {@code final}。
+     */
+    private final String applicationName;
 
     private static final String EXPORT_DIR = "export";
 
     /**
      * 采用构造器注入，将 StorageService 声明为可选依赖
      */
-    public ExcelExporterImpl(ExportProperties exportProperties, @Nullable StorageService storageService) {
+    public ExcelExporterImpl(ExportProperties exportProperties, @Nullable StorageService storageService,
+                             String applicationName) {
         this.exportProperties = exportProperties;
         this.storageService = storageService;
+        this.applicationName = applicationName;
     }
 
     private HorizontalCellStyleStrategy newStyleStrategy() {

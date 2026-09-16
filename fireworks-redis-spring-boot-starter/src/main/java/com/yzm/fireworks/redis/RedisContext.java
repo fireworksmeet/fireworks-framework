@@ -184,6 +184,7 @@ public class RedisContext {
     }
 
     public Long increment(String key, long time, TimeUnit unit) {
+        checkKey(key);
         return stringRedisTemplate.execute(RATE_LIMIT_REDIS_SCRIPT,
                 Collections.singletonList(key), String.valueOf(unit.toSeconds(time)));
     }

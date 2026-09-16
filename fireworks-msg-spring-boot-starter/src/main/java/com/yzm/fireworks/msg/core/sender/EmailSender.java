@@ -9,7 +9,6 @@ import com.yzm.fireworks.msg.utils.TemplateUtil;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -34,16 +33,25 @@ public class EmailSender extends AbstractRateLimitSender<EmailMessage> implement
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
-    @Value("${spring.mail.username}")
-    private String defaultFrom;
+    /**
+     * 默认发件人地址，取值自 {@code spring.mail.username}。
+     * <p>
+     * 由 {@code MessageAutoConfiguration} 在创建本 Bean 时注入，而非使用字段上的
+     * {@code @Value}：本实例由 {@code @Bean} 方法手动 {@code new} 构造，
+     * 统一通过构造器传入依赖可保证「构造器即完整契约」，同时使字段可声明为
+     * {@code final}、便于单元测试直接构造。
+     */
+    private final String defaultFrom;
 
     public EmailSender(JavaMailSender mailSender,
                        TemplateEngine templateEngine,
                        MessageProperties properties,
-                       RateLimiter rateLimiter) {
+                       RateLimiter rateLimiter,
+                       String defaultFrom) {
         super(properties, rateLimiter);
         this.mailSender = mailSender;
         this.templateEngine = templateEngine;
+        this.defaultFrom = defaultFrom;
     }
 
     @Override

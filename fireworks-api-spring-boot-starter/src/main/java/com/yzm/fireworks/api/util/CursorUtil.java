@@ -16,7 +16,7 @@ public class CursorUtil {
 
     /**
      * 构建复合游标（如：时间戳 + ID）
-     *
+     * <p>
      * 示例：CursorUtil.build(1769587200000L, 10086L) -> "MTc2OTU4NzIwMDAwMH4xMDA4Ng"
      *
      * @param values 游标字段列表（按 SQL 排序顺序传入）
@@ -42,7 +42,9 @@ public class CursorUtil {
             return new String[0];
         }
         try {
-            String raw = Base64Util.decode(cursor);
+            // 必须与 build 的 encodeUrl 配对使用 decodeUrl：
+            // URL-safe 编码结果可能含 '-' 与 '_'，标准解码器遇到这些字符会抛 IllegalArgumentException
+            String raw = Base64Util.decodeUrl(cursor);
             if (!StringUtils.hasText(raw)) {
                 return new String[0];
             }

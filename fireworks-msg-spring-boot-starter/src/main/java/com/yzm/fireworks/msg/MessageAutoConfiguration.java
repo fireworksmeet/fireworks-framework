@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.annotation.MapperScan;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -122,11 +123,19 @@ public class MessageAutoConfiguration {
         return executor;
     }
 
+    /**
+     * 邮件推送器
+     * <p>
+     * 默认发件人地址在此处以 {@code @Value} 显式声明为方法参数，而非在
+     * {@link EmailSender} 内使用字段注入，使依赖全部经由构造器传入、风格统一。
+     * 该配置无默认值：缺失时应启动失败，避免以空发件人静默发送失败。
+     */
     @Bean
     @ConditionalOnProperty(prefix = "fireworks.message.push.email", name = "enabled", havingValue = "true")
     public EmailSender emailSender(JavaMailSender mailSender, TemplateEngine templateEngine,
-                                   MessageProperties properties, RateLimiter rateLimiter) {
-        return new EmailSender(mailSender, templateEngine, properties, rateLimiter);
+                                   MessageProperties properties, RateLimiter rateLimiter,
+                                   @Value("${spring.mail.username}") String defaultFrom) {
+        return new EmailSender(mailSender, templateEngine, properties, rateLimiter, defaultFrom);
     }
 
     @Bean

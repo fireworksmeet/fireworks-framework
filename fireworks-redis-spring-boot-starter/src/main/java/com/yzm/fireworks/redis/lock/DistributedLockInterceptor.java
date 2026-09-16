@@ -1,10 +1,12 @@
 package com.yzm.fireworks.redis.lock;
 
-import com.yzm.fireworks.common.util.SpelUtil;
+import com.yzm.fireworks.common.expression.SpelEvaluationContext;
+import com.yzm.fireworks.common.expression.SpelEvaluator;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.context.expression.MethodBasedEvaluationContext;
+import org.springframework.context.expression.AnnotatedElementKey;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
@@ -22,6 +24,11 @@ import static com.yzm.fireworks.common.constants.StringPool.DOT;
  */
 public class DistributedLockInterceptor implements MethodInterceptor {
 
+    /**
+     * SpEL 求值器：持有表达式缓存，实例长期复用
+     */
+    private final SpelEvaluator spelEvaluator = new SpelEvaluator();
+
     private final DistributedLockMetadataSource metadataSource;
     private final LockService lockService;
 
@@ -32,8 +39,15 @@ public class DistributedLockInterceptor implements MethodInterceptor {
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
+        // 代理不拦截：目标对象本身已是代理时（代理套代理），跳过本次加锁直接执行，
+        // 避免同一把可重入锁被重复加锁导致计数错乱、进而无法释放
+        Object target = invocation.getThis();
+        if (AopUtils.isAopProxy(target)) {
+            return invocation.proceed();
+        }
+
         Method method = invocation.getMethod();
-        Class<?> targetClass = invocation.getThis() != null ? invocation.getThis().getClass() : null;
+        Class<?> targetClass = target != null ? target.getClass() : null;
 
         DistributedLockAttribute attribute = metadataSource.getMetadata(method, targetClass);
         if (attribute == null) {
@@ -56,8 +70,10 @@ public class DistributedLockInterceptor implements MethodInterceptor {
         if (!StringUtils.hasText(attribute.getKey())) {
             return prefix;
         }
-        MethodBasedEvaluationContext context = SpelUtil.createMethodContext(null, method, args);
-        String suffix = SpelUtil.evaluate(attribute.getKey(), context, String.class);
+        SpelEvaluationContext context = spelEvaluator.createContext(
+                method, args, method.getDeclaringClass(), null, null, null);
+        AnnotatedElementKey methodKey = spelEvaluator.methodKey(method, method.getDeclaringClass());
+        String suffix = spelEvaluator.evaluate(attribute.getKey(), methodKey, context, String.class);
         return StringUtils.hasText(suffix) ? prefix + COLON + suffix : prefix;
     }
 

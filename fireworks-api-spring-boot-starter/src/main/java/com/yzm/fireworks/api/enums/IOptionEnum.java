@@ -1,13 +1,15 @@
 package com.yzm.fireworks.api.enums;
 
+import com.baomidou.mybatisplus.annotation.IEnum;
+
 /**
  * 选项枚举接口
  * <p>
  * 实现此接口的枚举可被选项自动扫描机制发现并注册，
  * 通过统一接口返回给前端作为下拉选项、筛选条件等。
  * <p>
- * 不继承 MyBatis-Plus 的 {@code IEnum}，因此枚举在数据库中存储的是 name（如 "ANDROID"），
- * 而非 value（如 0）。前端交互仍使用 Integer value。
+ * 继承 MyBatis-Plus 的 {@link IEnum}，因此枚举在数据库中存储的是 value（如 0），
+ * 与前端交互、JSON 序列化（{@code @JsonValue}）三处保持一致。
  * <p>
  * 使用方式：
  * <pre>
@@ -27,13 +29,16 @@ package com.yzm.fireworks.api.enums;
  *
  * @author JYuan
  */
-public interface IOptionEnum {
+public interface IOptionEnum extends IEnum<Integer> {
 
     /**
      * 获取枚举值（用于前端交互的数值标识）
+     * <p>
+     * 由 {@link IEnum#getValue()} 提供，实现类只需声明字段即可。
      *
      * @return 枚举值
      */
+    @Override
     Integer getValue();
 
     /**

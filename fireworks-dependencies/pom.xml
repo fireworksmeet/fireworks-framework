@@ -190,6 +190,11 @@
                 <version>${revision}</version>
             </dependency>
             <dependency>
+                <groupId>com.yzm.fireworks</groupId>
+                <artifactId>fireworks-oplog-spring-boot-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.mybatis</groupId>
                 <artifactId>mybatis-spring</artifactId>
                 <version>${mybatis-spring.version}</version>

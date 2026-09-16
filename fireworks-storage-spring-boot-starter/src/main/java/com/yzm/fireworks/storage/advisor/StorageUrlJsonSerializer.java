@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ser.ContextualSerializer;
 import com.yzm.fireworks.common.annotation.StorageUrl;
 import com.yzm.fireworks.common.constants.StringPool;
 import com.yzm.fireworks.common.enums.UrlType;
+import com.yzm.fireworks.common.util.ArrayUtil;
 import com.yzm.fireworks.common.util.SpringContextHolder;
 import com.yzm.fireworks.storage.service.StorageService;
 import lombok.AllArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.StreamSupport;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -83,18 +85,12 @@ public class StorageUrlJsonSerializer extends JsonSerializer<Object> implements 
         Duration duration = Duration.ofSeconds(durationSeconds);
 
         // 场景 2：多态解析（集合 / 数组 / 分隔符字符串 / 单个 Key）
-        if (targetKeyObj instanceof Collection<?> collection) {
-            List<String> urls = collection.stream()
-                    .filter(Objects::nonNull)
-                    .map(Object::toString)
-                    .filter(StringUtils::hasText)
-                    .map(key -> resolveUrl(storageService, key, bucket, type, duration))
-                    .toList();
-            gen.writeObject(urls);
-
-        } else if (targetKeyObj.getClass().isArray()) {
-            Object[] arr = (Object[]) targetKeyObj;
-            List<String> urls = Arrays.stream(arr)
+        // 集合与数组统一为 Iterable 后走同一套逻辑：ArrayUtil.toIterable 内部使用
+        // java.lang.reflect.Array，可正确处理 long[] 等原始类型数组，
+        // 避免 (Object[]) 强转导致的 ClassCastException。
+        Iterable<?> iterable = ArrayUtil.toIterable(targetKeyObj);
+        if (iterable != null) {
+            List<String> urls = StreamSupport.stream(iterable.spliterator(), false)
                     .filter(Objects::nonNull)
                     .map(Object::toString)
                     .filter(StringUtils::hasText)

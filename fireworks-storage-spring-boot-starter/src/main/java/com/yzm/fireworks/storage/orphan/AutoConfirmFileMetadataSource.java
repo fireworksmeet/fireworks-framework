@@ -1,11 +1,8 @@
 package com.yzm.fireworks.storage.orphan;
 
 import com.yzm.fireworks.common.aop.AbstractAnnotationMetadataSource;
-import com.yzm.fireworks.common.util.SpelUtil;
 import com.yzm.fireworks.storage.model.annotation.AutoConfirmFile;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.expression.Expression;
-import org.springframework.util.StringUtils;
 
 import java.lang.reflect.AnnotatedElement;
 
@@ -23,20 +20,9 @@ public class AutoConfirmFileMetadataSource extends AbstractAnnotationMetadataSou
         if (annotation == null) {
             return null;
         }
-
-        String bucketSpel = annotation.bucket();
-        String objectKeySpel = annotation.objectKey();
-
-        // SpelUtil.parse 对空表达式会抛异常，因此仅在表达式非空时解析。
-        Expression bucketExpression = StringUtils.hasText(bucketSpel) ? SpelUtil.parse(bucketSpel) : null;
-        Expression objectKeyExpression = StringUtils.hasText(objectKeySpel) ? SpelUtil.parse(objectKeySpel) : null;
-
         return AutoConfirmFileAttribute.builder()
-                .bucket(bucketSpel)
-                .objectKey(objectKeySpel)
-                .bucketExpression(bucketExpression)
-                .objectKeyExpression(objectKeyExpression)
+                .bucket(annotation.bucket())
+                .objectKey(annotation.objectKey())
                 .build();
     }
 }
-

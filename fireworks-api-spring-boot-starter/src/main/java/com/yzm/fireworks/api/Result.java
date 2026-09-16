@@ -248,7 +248,7 @@ public class Result<T> {
                     });
                 }
             } catch (Exception e) {
-                log.debug("Failed to parse error data: {}", e.getMessage());
+                log.debug("Failed to parse error data", e);
             }
         } else {
             result.setMessage(message);
