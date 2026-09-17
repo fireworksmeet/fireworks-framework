@@ -36,14 +36,19 @@ public class SagaLogService {
     }
 
     public <T> boolean saveExecuting(String sagaId, String stepName, T param) {
+        // 显式设置审计时间：不依赖数据库列默认值（业务可能自建表），
+        // 也不依赖 MetaObjectHandler（框架自身不提供该实现）
+        Instant now = Instant.now();
         SagaLog sagaLog = SagaLog.builder()
                 .sagaId(sagaId)
                 .stepName(stepName)
                 .status(SagaStatus.EXECUTING)
                 .retryCount(0) // 初始重试次数为 0 (主流设计)
                 .maxRetries(properties.getMaxRetries())
-                .nextRetryTime(Instant.now().plusMillis(properties.getExecutingTimeout()))
+                .nextRetryTime(now.plusMillis(properties.getExecutingTimeout()))
                 .param(serialize(param))
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
         return SqlHelper.retBool(sagaLogMapper.insert(sagaLog));
     }
@@ -58,10 +63,17 @@ public class SagaLogService {
                 properties.getMaxDelayMs(), properties.getJitterFactor(), Instant.now());
     }
 
+    /**
+     * 将整个 Saga 下的所有步骤记录标记为成功
+     * <p>
+     * 按 {@code sagaId} 批量更新，故须一并刷新 {@code updatedAt}，
+     * 否则该字段会停留在各步骤成功时的时刻，无法反映整个 Saga 的完成时间。
+     */
     public boolean updateSucceeded(String sagaId) {
         return SqlHelper.retBool(sagaLogMapper.update(Wrappers.<SagaLog>lambdaUpdate()
                 .eq(SagaLog::getSagaId, sagaId)
-                .set(SagaLog::getStatus, SagaStatus.SUCCEEDED)));
+                .set(SagaLog::getStatus, SagaStatus.SUCCEEDED)
+                .set(SagaLog::getUpdatedAt, Instant.now())));
     }
 
     public boolean updateStepSucceededAtomic(String sagaId, String stepName) {
@@ -71,10 +83,6 @@ public class SagaLogService {
                 .eq(SagaLog::getStatus, SagaStatus.EXECUTING)
                 .set(SagaLog::getStatus, SagaStatus.SUCCEEDED)
                 .set(SagaLog::getUpdatedAt, Instant.now())));
-    }
-
-    public boolean updateById(SagaLog sagaLog) {
-        return SqlHelper.retBool(sagaLogMapper.updateById(sagaLog));
     }
 
     /**

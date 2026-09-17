@@ -118,13 +118,15 @@ public class MessageRecord implements Serializable {
 
     /**
      * 创建时间
+     * <p>
+     * 由业务代码在插入前显式赋值，不依赖自动填充与数据库列默认值。
      */
-    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private Instant createdAt;
 
     /**
      * 更新时间
+     * <p>
+     * 由业务代码在插入/更新前显式赋值，不依赖自动填充与数据库列默认值。
      */
-    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private Instant updatedAt;
 }
