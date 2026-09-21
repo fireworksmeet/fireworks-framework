@@ -10,7 +10,6 @@ import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -20,11 +19,14 @@ import java.util.Map;
 
 /**
  * Spring 应用上下文持有者与工具类
+ * <p>
+ * 【注册方式】由 {@code CommonAutoConfiguration} 通过 {@code @Import} 显式注册，
+ * 因此**刻意不标注 {@code @Component}**：框架类不在业务应用的组件扫描范围内，
+ * 若同时依赖扫描会导致同一类产生两个 Bean（Bean 名不同：类全名 vs 首字母小写类名）。
  *
  * @author JYuan
  */
 @Slf4j
-@Component
 public class SpringContextHolder implements ApplicationContextAware, DisposableBean {
 
     /**

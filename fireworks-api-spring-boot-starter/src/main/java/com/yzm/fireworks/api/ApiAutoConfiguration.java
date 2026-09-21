@@ -12,7 +12,6 @@ import org.springframework.boot.autoconfigure.validation.ValidationConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import java.util.ArrayList;
@@ -25,7 +24,6 @@ import java.util.List;
 @Slf4j
 @AutoConfiguration
 @EnableConfigurationProperties(OptionEnumScanProperties.class)
-@ComponentScan("com.yzm.fireworks.api")
 public class ApiAutoConfiguration {
 
     /**

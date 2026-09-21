@@ -34,7 +34,7 @@ public class RedissonRateLimiter implements RateLimiter {
             // 尝试获取 1 个令牌
             return rateLimiter.tryAcquire();
         } catch (Exception e) {
-            log.error("Redisson rate limit check error, key: {}", key, e);
+            log.warn("Redisson rate limit check error, key: {}", key, e);
             // 异常时降级放行
             return true;
         }
@@ -45,7 +45,7 @@ public class RedissonRateLimiter implements RateLimiter {
         try {
             redissonClient.getRateLimiter(key).deleteAsync();
         } catch (Exception e) {
-            log.error("Redisson rate limit remove error, key: {}", key, e);
+            log.warn("Redisson rate limit remove error, key: {}", key, e);
         }
     }
 }

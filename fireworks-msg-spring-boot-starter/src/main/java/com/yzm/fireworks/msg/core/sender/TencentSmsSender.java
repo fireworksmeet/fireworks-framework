@@ -91,7 +91,7 @@ public class TencentSmsSender extends AbstractRateLimitSender<SmsMessage> implem
         SendStatus[] statuses = response.getSendStatusSet();
 
         if (!ObjectUtils.isEmpty(statuses) && "Ok".equals(statuses[0].getCode())) {
-            log.info("SMS sent successfully: messageId={}, serialNo={}",
+            log.debug("SMS sent successfully: messageId={}, serialNo={}",
                     message.getMessageId(), statuses[0].getSerialNo());
 
             MessageResult result = MessageResult.success(message.getMessageId());
@@ -100,7 +100,7 @@ public class TencentSmsSender extends AbstractRateLimitSender<SmsMessage> implem
         } else {
             String errorMsg = !ObjectUtils.isEmpty(statuses) ?
                     statuses[0].getMessage() : "Unknown error";
-            log.error("Failed to send SMS: {}", errorMsg);
+            log.warn("Failed to send SMS: {}", errorMsg);
             return MessageResult.failed(message.getMessageId(), errorMsg);
         }
     }

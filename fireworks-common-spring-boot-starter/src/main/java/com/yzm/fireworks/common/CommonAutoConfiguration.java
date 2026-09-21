@@ -12,11 +12,13 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.yzm.fireworks.common.decorator.MdcTaskDecorator;
 import com.yzm.fireworks.common.sensitive.SensitiveModule;
+import com.yzm.fireworks.common.util.SpringContextHolder;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.util.ObjectUtils;
 
@@ -31,10 +33,14 @@ import java.math.BigInteger;
  * <p>
  * 说明：时间类型（LocalDateTime / Instant / OffsetDateTime 等）不在此处手动配置，统一交由
  * JavaTimeModule 默认实现按 ISO 格式序列化，且不设置全局 TimeZone，避免给无时区类型附加时区语义。
+ * <p>
+ * 【注册方式】{@link SpringContextHolder} 通过 {@code @Import} 显式注册：框架类不在业务应用的
+ * 组件扫描范围内，且官方要求自动配置类不得启用 {@code @ComponentScan}。
  *
  * @author JYuan
  */
 @AutoConfiguration
+@Import(SpringContextHolder.class)
 public class CommonAutoConfiguration {
 
     /**

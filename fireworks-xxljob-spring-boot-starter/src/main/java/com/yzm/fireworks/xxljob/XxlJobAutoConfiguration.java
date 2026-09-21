@@ -6,17 +6,13 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.commons.util.InetUtils;
-import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.util.StringUtils;
 
 /**
  * @author JYuan
  */
 @AutoConfiguration
-@EnableFeignClients("com.yzm.fireworks.xxljob")
-@ComponentScan("com.yzm.fireworks.xxljob")
 @ConditionalOnProperty(prefix = "fireworks.xxljob", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(XxlJobProperties.class)
 @Slf4j

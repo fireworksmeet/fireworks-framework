@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yzm.fireworks</groupId>
+        <artifactId>fireworks-spring-boot-parent</artifactId>
+        <version>${revision}</version>
+        <!-- ⚡️ 这个绝对不能少！指引 Maven 在本地物理目录向上找父 POM -->
+        <relativePath>../fireworks-spring-boot-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>fireworks-security-spring-boot-starter</artifactId>
+
+    <dependencies>
+        <!-- 统一响应 Result、ExceptionStatus -->
+        <dependency>
+            <groupId>com.yzm.fireworks</groupId>
+            <artifactId>fireworks-api-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Base64 / JSON 等工具 -->
+        <dependency>
+            <groupId>com.yzm.fireworks</groupId>
+            <artifactId>fireworks-common-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Spring Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Web（OncePerRequestFilter、HttpServletRequest 等） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+</project>

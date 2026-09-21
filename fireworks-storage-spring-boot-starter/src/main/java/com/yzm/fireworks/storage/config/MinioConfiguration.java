@@ -21,7 +21,7 @@ import org.springframework.util.StringUtils;
 
 import static com.yzm.fireworks.common.constants.StringPool.*;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(MinioClient.class)
 @ConditionalOnProperty(prefix = "fireworks.storage", name = "provider", havingValue = "minio", matchIfMissing = true)
 public class MinioConfiguration {

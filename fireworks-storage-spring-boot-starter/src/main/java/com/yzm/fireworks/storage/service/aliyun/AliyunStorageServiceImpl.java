@@ -58,7 +58,7 @@ public class AliyunStorageServiceImpl extends AbstractStorageService {
         }
 
         PutObjectResult result = ossClient.putObject(bucket, objectKey, inputStream, metadata);
-        log.info("阿里云 OSS 文件上传成功, bucket={}, object={}, etag={}", bucket, objectKey, result.getETag());
+        log.debug("阿里云 OSS 文件上传成功, bucket={}, object={}, etag={}", bucket, objectKey, result.getETag());
 
         String fileUrl = getPublicUrl(bucket, objectKey);
         return StorageFile.builder()
@@ -109,14 +109,14 @@ public class AliyunStorageServiceImpl extends AbstractStorageService {
     @Override
     protected void doDeleteFile(String bucket, String objectKey) throws Exception {
         ossClient.deleteObject(bucket, objectKey);
-        log.info("阿里云 OSS 文件删除成功, bucket={}, object={}", bucket, objectKey);
+        log.debug("阿里云 OSS 文件删除成功, bucket={}, object={}", bucket, objectKey);
     }
 
     @Override
     protected void doDeleteFiles(String bucket, List<String> objectKeys) throws Exception {
         DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(objectKeys);
         DeleteObjectsResult result = ossClient.deleteObjects(request);
-        log.info("阿里云 OSS 批量删除文件成功, bucket={}, count={}", bucket, result.getDeletedObjects().size());
+        log.debug("阿里云 OSS 批量删除文件成功, bucket={}, count={}", bucket, result.getDeletedObjects().size());
     }
 
     @Override

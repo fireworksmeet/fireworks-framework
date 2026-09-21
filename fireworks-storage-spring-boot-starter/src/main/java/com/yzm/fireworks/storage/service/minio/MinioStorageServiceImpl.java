@@ -75,7 +75,7 @@ public class MinioStorageServiceImpl extends AbstractStorageService implements S
         }
 
         ObjectWriteResponse response = minioClient.putObject(builder.build());
-        log.info("MinIO 文件流式上传成功, bucket={}, object={}, etag={}", bucket, objectKey, response.etag());
+        log.debug("MinIO 文件流式上传成功, bucket={}, object={}, etag={}", bucket, objectKey, response.etag());
 
         String fileUrl = getPublicUrl(bucket, objectKey);
         return StorageFile.builder()
@@ -145,7 +145,7 @@ public class MinioStorageServiceImpl extends AbstractStorageService implements S
                         .object(objectKey)
                         .build()
         );
-        log.info("MinIO 文件删除成功, bucket={}, object={}", bucket, objectKey);
+        log.debug("MinIO 文件删除成功, bucket={}, object={}", bucket, objectKey);
     }
 
     @Override

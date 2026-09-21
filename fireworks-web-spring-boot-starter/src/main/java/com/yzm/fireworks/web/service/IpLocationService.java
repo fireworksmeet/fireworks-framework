@@ -85,7 +85,7 @@ public class IpLocationService implements DisposableBean {
             String info = ip2Region.search(ip);
             return parseLocation(info);
         } catch (Exception e) {
-            log.error("IP解析失败: {}", ip, e);
+            log.warn("IP解析失败: {}", ip, e);
             return buildUnknownLocation();
         }
     }

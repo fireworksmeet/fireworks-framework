@@ -57,7 +57,7 @@ public class EmailSender extends AbstractRateLimitSender<EmailMessage> implement
     @Override
     protected MessageResult doSend(EmailMessage message) {
         sendEmail(message);
-        log.info("Email sent successfully: messageId={}", message.getMessageId());
+        log.debug("Email sent successfully: messageId={}", message.getMessageId());
         return MessageResult.success(message.getMessageId());
     }
 

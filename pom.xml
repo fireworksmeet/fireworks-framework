@@ -22,6 +22,7 @@
         <module>fireworks-id-spring-boot-starter</module>
         <module>fireworks-saga-spring-boot-starter</module>
         <module>fireworks-token-spring-boot-starter</module>
+        <module>fireworks-security-spring-boot-starter</module>
         <module>fireworks-msg-spring-boot-starter</module>
         <module>fireworks-webflux-client-spring-boot-starter</module>
         <module>fireworks-oplog-spring-boot-starter</module>

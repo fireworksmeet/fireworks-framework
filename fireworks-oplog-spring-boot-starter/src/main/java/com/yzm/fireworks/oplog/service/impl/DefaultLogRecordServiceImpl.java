@@ -17,6 +17,6 @@ public class DefaultLogRecordServiceImpl implements ILogRecordService {
 
     @Override
     public void save(LogRecord logRecord) {
-        log.info("logRecord:{}", logRecord);
+        log.debug("logRecord:{}", logRecord);
     }
 }

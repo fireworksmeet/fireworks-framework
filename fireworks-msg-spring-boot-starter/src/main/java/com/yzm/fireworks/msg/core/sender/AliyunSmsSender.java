@@ -71,14 +71,14 @@ public class AliyunSmsSender extends AbstractRateLimitSender<SmsMessage> impleme
         SendSmsResponse response = client.sendSms(request);
 
         if ("OK".equals(response.getBody().getCode())) {
-            log.info("SMS sent successfully: messageId={}, bizId={}",
+            log.debug("SMS sent successfully: messageId={}, bizId={}",
                     message.getMessageId(), response.getBody().getBizId());
 
             MessageResult result = MessageResult.success(message.getMessageId());
             result.setExternalMessageId(response.getBody().getBizId());
             return result;
         } else {
-            log.error("Failed to send SMS: code={}, message={}",
+            log.warn("Failed to send SMS: code={}, message={}",
                     response.getBody().getCode(), response.getBody().getMessage());
             return MessageResult.failed(message.getMessageId(), response.getBody().getMessage());
         }

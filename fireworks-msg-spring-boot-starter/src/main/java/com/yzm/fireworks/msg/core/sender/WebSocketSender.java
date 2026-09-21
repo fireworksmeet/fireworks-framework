@@ -51,7 +51,7 @@ public class WebSocketSender implements MessageSender<WebSocketMessage> {
                     .retrieve()
                     .toBodilessEntity();
 
-            log.info("WebSocket message sent successfully: messageId={}, channel={}",
+            log.debug("WebSocket message sent successfully: messageId={}, channel={}",
                     message.getMessageId(), channelPath);
 
             return MessageResult.success(message.getMessageId());

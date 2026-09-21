@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.Assert;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(OSS.class)
 @ConditionalOnProperty(prefix = "fireworks.storage", name = "provider", havingValue = "aliyun")
 public class AliyunConfiguration {

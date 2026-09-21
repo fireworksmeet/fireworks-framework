@@ -101,7 +101,7 @@ public abstract class AbstractRateLimitSender<T extends BaseMessage> implements 
             try {
                 rateLimiter.removeRequest(key);
             } catch (Exception e) {
-                log.error("Failed to rollback rate limit key: {}", key, e);
+                log.warn("Failed to rollback rate limit key: {}", key, e);
             }
         }
     }
