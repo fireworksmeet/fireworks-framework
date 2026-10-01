@@ -1,4 +1,1 @@
 com.yzm.fireworks.storage.StorageAutoConfiguration
-com.yzm.fireworks.storage.orphan.OrphanFileAutoConfiguration
-com.yzm.fireworks.storage.config.AliyunConfiguration
-com.yzm.fireworks.storage.config.MinioConfiguration

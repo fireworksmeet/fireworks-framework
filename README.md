@@ -40,7 +40,7 @@ fireworks-api-spring-boot-starter          ─┤ API 层（Result/分页/BizExc
 | `fireworks-api` | API 层 | `Result`/分页(Offset+Cursor)/`BizException`/`BizAssert`/`@OptLog` |
 | `fireworks-web` | Web 增强 | 全局异常/Tomcat 兜底/系统日志/操作日志/IP 定位/客户端解析/排序组件 |
 | `fireworks-redis` | Redis | 多数据源/`@DistributedLock`/`LockService`/JSON 序列化/JFR |
-| `fireworks-storage` | 对象存储 | MinIO/OSS/直传凭证/孤儿文件治理/`@StorageUrl` |
+| `fireworks-storage` | 对象存储 | 统一 S3 协议接入(MinIO/OSS/AWS S3/COS/OBS)/上传下载/URL 生成/直传凭证 |
 | `fireworks-export` | 导出 | EasyExcel 流式导出/对象存储落库/Cursor 批处理/合并单元格 |
 | `fireworks-msg` | 消息推送 | WebSocket/短信(阿里/腾讯)/邮件/去重/限流/记录 |
 | `fireworks-saga` | 分布式事务 | Saga 编排/补偿/CAS 状态机/定时恢复 |

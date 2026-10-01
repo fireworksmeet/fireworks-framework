@@ -9,9 +9,9 @@ import com.yzm.fireworks.export.ExportProperties;
 import com.yzm.fireworks.export.cursor.ExcelService;
 import com.yzm.fireworks.export.model.ExportContext;
 import com.yzm.fireworks.export.model.util.StyleUtil;
-import com.yzm.fireworks.storage.model.dto.StorageFile;
-import com.yzm.fireworks.storage.model.util.ObjectKeyUtil;
-import com.yzm.fireworks.storage.service.StorageService;
+import com.yzm.fireworks.storage.ObjectKeyUtil;
+import com.yzm.fireworks.storage.StorageFile;
+import com.yzm.fireworks.storage.service.S3StorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
@@ -40,7 +40,7 @@ import static org.apache.commons.lang3.SystemUtils.JAVA_IO_TMPDIR;
 public class ExcelExporterImpl implements ExcelExporter {
 
     private final ExportProperties exportProperties;
-    private final StorageService storageService;
+    private final S3StorageService storageService;
 
     /**
      * 应用名，取值自 {@code spring.application.name}，用于生成导出文件的 objectKey。
@@ -54,9 +54,9 @@ public class ExcelExporterImpl implements ExcelExporter {
     private static final String EXPORT_DIR = "export";
 
     /**
-     * 采用构造器注入，将 StorageService 声明为可选依赖
+     * 采用构造器注入，将 S3StorageService 声明为可选依赖
      */
-    public ExcelExporterImpl(ExportProperties exportProperties, @Nullable StorageService storageService,
+    public ExcelExporterImpl(ExportProperties exportProperties, @Nullable S3StorageService storageService,
                              String applicationName) {
         this.exportProperties = exportProperties;
         this.storageService = storageService;
@@ -87,7 +87,7 @@ public class ExcelExporterImpl implements ExcelExporter {
     @Override
     public <Q> StorageFile exportToStorage(ExportContext<Q> context, ExcelService<Q> excelService) {
         validateContext(context);
-        Assert.notNull(storageService, "StorageService 未注入，无法使用上传存储服务");
+        Assert.notNull(storageService, "S3StorageService 未注入，无法使用上传存储服务");
 
         Path targetDir = getExportDirectory();
         String uniqueFileName = context.getFileName() + UNDERSCORE + uuid() + ".xlsx";
@@ -106,10 +106,10 @@ public class ExcelExporterImpl implements ExcelExporter {
                 excelService.writeData(excelWriter, writeSheet, context.getQueryParam());
             }
 
-            // 2. 上传至 OSS / 存储系统
-            return storageService.upload(context.getBucket(), ObjectKeyUtil.buildObjectKey(EXPORT_DIR, uniqueFileName), tempFile, MediaType.APPLICATION_OCTET_STREAM_VALUE);
-        } catch (IOException e) {
-            throw new IllegalStateException("Export and upload file failed", e);
+            // 2. 上传至 OSS / 存储系统。
+            // 上传失败时 S3StorageService 抛出 StorageException（携带 bucket/key 与 cause），
+            // 此处不再包装：包装会丢掉更精确的上下文，finally 仍保证临时文件被清理。
+            return storageService.putObject(context.getBucket(), ObjectKeyUtil.buildObjectKey(EXPORT_DIR, uniqueFileName), tempFile, MediaType.APPLICATION_OCTET_STREAM_VALUE);
         } finally {
             // 3. 严格清理本地临时文件
             if (tempFile.exists()) {

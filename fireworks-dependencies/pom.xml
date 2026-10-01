@@ -37,11 +37,9 @@
         <easyexcel.version>4.0.3</easyexcel.version>
         <modelmapper-spring-boot-starter.version>1.1.0</modelmapper-spring-boot-starter.version>
         <modelmapper.version>3.1.1</modelmapper.version>
-        <aliyun-sdk-oss.version>3.17.0</aliyun-sdk-oss.version>
         <aliyun-java-sdk-dysmsapi.version>4.4.0</aliyun-java-sdk-dysmsapi.version>
         <redisson.version>3.52.0</redisson.version>
-        <alibaba-dingtalk-service-sdk.version>2.0.0</alibaba-dingtalk-service-sdk.version>
-        <minio.version>8.5.4</minio.version>
+        <aws-sdk.version>2.55.7</aws-sdk.version>
         <ffmpeg.version>6.0-1.5.9</ffmpeg.version>
         <leaf-boot-starter.version>1.0.2-RELEASE</leaf-boot-starter.version>
         <tencentcloud-sdk-java-sms.version>3.1.1357</tencentcloud-sdk-java-sms.version>
@@ -280,11 +278,6 @@
                 <version>${modelmapper-spring-boot-starter.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.aliyun.oss</groupId>
-                <artifactId>aliyun-sdk-oss</artifactId>
-                <version>${aliyun-sdk-oss.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>com.aliyun</groupId>
                 <artifactId>dysmsapi20170525</artifactId>
                 <version>${aliyun-java-sdk-dysmsapi.version}</version>
@@ -295,14 +288,14 @@
                 <version>${redisson.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.aliyun</groupId>
-                <artifactId>alibaba-dingtalk-service-sdk</artifactId>
-                <version>${alibaba-dingtalk-service-sdk.version}</version>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>s3</artifactId>
+                <version>${aws-sdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.minio</groupId>
-                <artifactId>minio</artifactId>
-                <version>${minio.version}</version>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>url-connection-client</artifactId>
+                <version>${aws-sdk.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bytedeco</groupId>

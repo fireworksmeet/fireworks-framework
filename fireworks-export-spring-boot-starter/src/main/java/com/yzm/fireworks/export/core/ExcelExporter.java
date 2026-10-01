@@ -2,7 +2,7 @@ package com.yzm.fireworks.export.core;
 
 import com.yzm.fireworks.export.cursor.ExcelService;
 import com.yzm.fireworks.export.model.ExportContext;
-import com.yzm.fireworks.storage.model.dto.StorageFile;
+import com.yzm.fireworks.storage.StorageFile;
 
 import java.io.OutputStream;
 
