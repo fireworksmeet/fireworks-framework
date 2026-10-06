@@ -38,5 +38,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+
+        <!--
+            内容类型识别（ContentTypeUtil）：映射表取自 Tika 的 tika-mimetypes.xml，
+            并提供按字节签名（magic number）的内容嗅探。
+            只需 tika-core，无需 tika-parsers-*（官方文档明确：仅 Core 时 DefaultDetector
+            使用 Mime Magic 与 Resource Name 两种检测）。
+        -->
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+        </dependency>
     </dependencies>
 </project>

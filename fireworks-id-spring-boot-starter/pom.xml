@@ -14,31 +14,34 @@
     <artifactId>fireworks-id-spring-boot-starter</artifactId>
 
     <dependencies>
+        <!--
+            CosId：通用分布式 ID 生成器，支持号段（segment）与雪花（snowflake）两种模式，
+            由 CosId 自身的 cosid.segment.enabled / cosid.snowflake.enabled 选择，两者互斥（见 README）。
+            版本由 fireworks-dependencies 导入的 cosid-bom 统一管理，
+            注意版本线必须与 Spring Boot 大版本对齐（2.x → Spring Boot 3.x）。
+        -->
         <dependency>
-            <groupId>com.tencent.devops.leaf</groupId>
-            <artifactId>leaf-boot-starter</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>mysql</groupId>
-                    <artifactId>mysql-connector-java</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.mybatis</groupId>
-                    <artifactId>mybatis</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.mybatis</groupId>
-                    <artifactId>mybatis-spring</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-spring-boot-starter</artifactId>
         </dependency>
+        <!--
+            JDBC（关系型数据库）号段分发器。CosId starter 中它是 optional 依赖，
+            必须按实际选用的分发器显式引入，否则 cosid.segment.distributor.type=jdbc 不会生效。
+            注意：其内置的建表/初始化 SQL 是 MySQL 方言，PostgreSQL 下需覆盖（见 README）。
+            仅号段模式需要；雪花模式的机器号分发若用 stateful_set 无需额外依赖（实现在 CosId 核心包内），
+            用 redis 则需另行引入 me.ahoo.cosid:cosid-spring-redis（见 README）。
+        -->
         <dependency>
-            <groupId>org.mybatis</groupId>
-            <artifactId>mybatis-spring</artifactId>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-jdbc</artifactId>
         </dependency>
+        <!--
+            雪花模式的机器号分发器之一：type=redis 时由它提供 SpringRedisMachineIdDistributor
+            （应用侧还需有 StringRedisTemplate）；type=stateful_set 无需额外依赖。
+        -->
         <dependency>
-            <groupId>com.yzm.fireworks</groupId>
-            <artifactId>fireworks-common-spring-boot-starter</artifactId>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-spring-redis</artifactId>
         </dependency>
     </dependencies>
 </project>

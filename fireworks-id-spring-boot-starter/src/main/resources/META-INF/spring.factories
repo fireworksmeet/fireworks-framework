@@ -1,0 +1,5 @@
+# ID starter 唯一的启动期逻辑：校验 cosid.segment.enabled 与 cosid.snowflake.enabled 没有同时开启。
+# 本模块不定义任何配置项、也不改写任何属性，其余配置错误交由 CosId 自行处理。
+# 注意：EnvironmentPostProcessor 需通过 spring.factories 注册，AutoConfiguration.imports 只用于自动配置类。
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.yzm.fireworks.id.IdModeConflictEnvironmentPostProcessor

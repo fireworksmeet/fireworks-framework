@@ -1,6 +1,5 @@
 package com.yzm.fireworks.msg.service;
 
-import com.yzm.fireworks.id.IdType;
 import com.yzm.fireworks.id.IdUtil;
 import com.yzm.fireworks.msg.MessageAutoConfiguration;
 import com.yzm.fireworks.msg.core.message.BaseMessage;
@@ -9,6 +8,7 @@ import com.yzm.fireworks.msg.core.message.WebSocketMessage;
 import com.yzm.fireworks.msg.enums.MessageStatus;
 import com.yzm.fireworks.msg.enums.MessageType;
 import com.yzm.fireworks.msg.exception.MessagePushException;
+import com.yzm.fireworks.msg.properties.MessageProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -47,16 +47,19 @@ import java.util.concurrent.Executor;
 @Slf4j
 public class MessagePushService {
 
+    private final MessageProperties properties;
     private final MessageRouterService routerService;
     private final MessageDeduplicationService deduplicationService;
     private final MessageRecordService recordService;
     /** 为 null 时 sendAsync 降级为同步（async.enabled=false 场景） */
     private final Executor asyncExecutor;
 
-    public MessagePushService(MessageRouterService routerService,
+    public MessagePushService(MessageProperties properties,
+                              MessageRouterService routerService,
                               MessageDeduplicationService deduplicationService,
                               MessageRecordService recordService,
                               Executor asyncExecutor) {
+        this.properties = properties;
         this.routerService = routerService;
         this.deduplicationService = deduplicationService;
         this.recordService = recordService;
@@ -232,11 +235,49 @@ public class MessagePushService {
 
     // ==================== 工具方法 ====================
 
+    /**
+     * 生成消息 ID 的字母数字部分：配置了 {@code fireworks.message.push.id.domain} 就用该业务标识取号，
+     * 否则用 CosId <b>共享生成器</b>（{@link IdUtil#getShareIdAsString()}）。
+     * <p>
+     * <b>为什么默认是共享生成器</b>：消息 ID 是技术标识（去重键 + 记录主键），只要全局唯一即可，
+     * 不需要位数契约、也不需要业务归属。此前的固定契约是 {@code SERIAL_NUMBER}——那是
+     * "用于流水号"的<b>业务序列</b>，用它发消息会消耗业务流水号的号段、并在流水号里留下来源不明的跳号。
+     * <p>
+     * <b>为什么取字符串形态而不是十进制</b>：{@code message_id} 是 {@code VARCHAR(64)}，
+     * 且希望"按 ID 排序 = 按取号先后排序"。CosId 默认转换器输出 radix62（0-9A-Za-z）+ 左补零定长 11 位，
+     * 而 62<sup>11</sup> &gt; {@code Long.MAX_VALUE}，于是：
+     * <ul>
+     *   <li><b>定长 11 位</b>：号段模式（短号）与雪花模式（19 位十进制）渲染成同一宽度——形态不随模式变化</li>
+     *   <li><b>字典序 = 数值序</b>：定长补零才成立；十进制文本没有补零，字典序会错（{@code "10" < "9"}）</li>
+     *   <li>比十进制（最多 19 位）和 UUID（36 位）都短</li>
+     * </ul>
+     * 用 {@link IdUtil#getUUID()} 也能满足唯一性，但会丢掉有序性（唯一索引随机插入），
+     * 只适合"不想依赖任何 ID 基础设施"的场景；要换的话改这一处即可。
+     * <p>
+     * 两条路径的失败语义一致（都 fail-fast、都不返回哨兵值）：共享生成器被显式关闭时提示
+     * {@code cosid.*.share.enabled}；配置的标识未声明时列出已注册标识。
+     */
+    private String nextMessageId() {
+        String domain = properties.getId().getDomain();
+        return StringUtils.hasText(domain) ? IdUtil.getIdAsString(domain) : IdUtil.getShareIdAsString();
+    }
+
+    /**
+     * 生成带类型前缀的消息 ID（{@code ws_} / {@code sms_} / {@code email_}）。
+     * <p>
+     * 取号来源与形态见 {@link #nextMessageId()}；调用方自行提供 {@code messageId} 时无需任何 ID 配置。
+     *
+     * @param messageType 消息类型，不能为空
+     * @return 形如 {@code email_000000001Ii} 的消息 ID（数字部分由 CosId 生成，定长 11 位）
+     * @throws MessagePushException     消息类型为空
+     * @throws IllegalArgumentException 配置的标识未声明，或共享生成器未开启（由 {@link IdUtil} 抛出）
+     * @throws IllegalStateException    应用尚未启动完成（由 {@link IdUtil} 抛出）
+     */
     public String generateMessageId(MessageType messageType) {
         if (ObjectUtils.isEmpty(messageType)) {
             throw new MessagePushException("Message type is required");
         }
-        long id = IdUtil.getId(IdType.SERIAL_NUMBER);
+        String id = nextMessageId();
         return switch (messageType) {
             case WEBSOCKET -> "ws_" + id;
             case SMS -> "sms_" + id;

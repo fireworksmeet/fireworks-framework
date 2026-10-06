@@ -138,7 +138,7 @@ public class DefaultSortRegistry extends AbstractSortRegistry<SortType> {
 
 ### 8. 字典表 SQL
 
-`resources/db/dict_table.sql` 中提供了常用的字典表建表脚本，按需执行即可。
+`script/db/dict_table.sql`（模块根目录下）中提供了常用的字典表建表脚本，按需执行即可。
 
 ## 配置项汇总
 

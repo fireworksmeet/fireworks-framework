@@ -135,17 +135,48 @@ ObjectKeyUtil.normalizeObjectKey("/avatar//a.jpg");  // avatar/a.jpg
 - 校验 S3 协议上限（objectKey ≤ 1024 字节）
 - 注意：S3 是扁平命名空间，`/` 与 `..` 无目录语义，本类**不构成路径穿越防护**；但严禁把 objectKey 直接当本地文件路径使用
 
-### `ContentTypeUtil` — MIME 推断
+### `ContentTypeUtil` — 内容类型识别
+
+**数据源为 Tika 的 `tika-mimetypes.xml`**（Freedesktop MIME-info）。与 Spring 内置表
+（`mime.types`，实测 788 行）的关键差异（均为实测）：
+
+| 扩展名 | Spring 内置表 | Tika |
+|---|---|---|
+| `.yaml` / `.yml` | ❌ octet-stream | ✅ `text/x-yaml` |
+| `.md` | ❌ octet-stream | ✅ `text/x-web-markdown` |
+| `.toml` | ❌ | ❌（Tika 也未收录） |
+| `.png` / `.json` / `.csv` | ✅ | ✅ |
+
+> ⚠️ Tika 返回的是**社区惯用名，不等于 RFC 注册名**：`.yaml` → `text/x-yaml`（RFC 9512 注册名是
+> `application/yaml`）、`.md` → `text/x-web-markdown`（注册名 `text/markdown`）。要求标准名时请显式声明。
 
 ```java
-ContentTypeUtil.getContentType("cat.PNG");           // Optional["image/png"]
-ContentTypeUtil.getContentType("cat.png?v=1");       // Optional["image/png"]（自动剥离 query）
-ContentTypeUtil.getContentTypeOrDefault("noext");    // "application/octet-stream"
-ContentTypeUtil.DEFAULT_CONTENT_TYPE;                // application/octet-stream
+// 只有一个动词：由参数区分“手里有什么”
+ContentTypeUtil.getContentType("config.yaml");                 // "text/x-yaml"（查表，不读内容）
+ContentTypeUtil.getContentType("cat.png?v=1");                 // "image/png"（自动剥离 query）
+ContentTypeUtil.getContentType("a.toml");                      // "application/octet-stream"（Tika 也未收录）
+ContentTypeUtil.getContentType(new File("/tmp/upload.bin"));   // "image/png"（文件名是 .bin 也认得出）
+ContentTypeUtil.getContentType("photo.heic", inputStream);     // 内容 + 文件名一起判断
+ContentTypeUtil.getContentType(inputStream);                   // 只有内容
 ```
 
-基于 Spring `MediaTypeFactory` 的 `mime.types` 表（1000+ 后缀）；容忍 URL 形态入参、后缀大小写不敏感。
-**只按后缀推断，不嗅探内容**——需要 magic number 识别请引入 Apache Tika。
+| 重载 | 依据 | 读内容 |
+|---|---|---|
+| `getContentType(String)` | 文件名后缀查表 | ❌ |
+| `getContentType(File)` | 字节签名 + 文件名细化 | ✅（推荐） |
+| `getContentType(String, InputStream)` | 字节签名 + 文件名细化 | ✅（仅头部，最多 64KB） |
+| `getContentType(InputStream)` | 仅字节签名 | ✅（仅头部，最多 64KB） |
+
+返回类型统一为 `String`，识别不出即 `application/octet-stream`——需要区分“未识别”时与该常量比较即可。
+嗅探类重载**不关闭**调用方的流，并在流支持 mark/reset 时检测后复位。
+
+> **能力边界（务必知晓）**：内容嗅探只对**二进制格式**有效（图片 / PDF / 压缩包 / Office / 音视频）。
+> YAML、JSON、CSV、Markdown 这类纯文本格式**没有魔数**，任何检测库都只能靠文件名
+> ——Tika 对它们同样依赖 `*.yaml` 之类的 glob 匹配。因此**后端自产文件必须显式声明类型**
+> （生成 YAML 就传 `application/yaml`），不要指望检测。
+>
+> **预签名直传的额外约束**：Content-Type 参与 SigV4 签名计算，签名时用什么类型、客户端就必须传什么类型，
+> 否则 403 `SignatureDoesNotMatch`——这类场景不要让客户端另行嗅探。
 
 ## 配置项清单（`fireworks.storage.*`）
 
@@ -198,7 +229,7 @@ fireworks-storage-spring-boot-starter/
     ├── StorageFile.java                   # 文件元数据 DTO
     ├── DirectUploadCredential.java        # 直传凭证 DTO（内含 HttpMethod 枚举）
     ├── ObjectKeyUtil.java                 # objectKey 生成与规范化
-    ├── ContentTypeUtil.java               # MIME 推断
+    ├── ContentTypeUtil.java               # 内容类型识别（Tika 表 + magic 嗅探）
     ├── FileNameSupport.java               # 包内共享：文件名归一化（非对外 API）
     ├── exception/
     │   └── StorageException.java          # 统一异常包装
@@ -213,6 +244,8 @@ fireworks-storage-spring-boot-starter/
 - `software.amazon.awssdk:s3` + `software.amazon.awssdk:url-connection-client`
 - `fireworks-common-spring-boot-starter`（仅用于 `StringPool` 常量）
 - `spring-boot-starter-validation`
+- `org.apache.tika:tika-core`（765KB）：提供内容类型映射表与 magic 嗅探。
+  **只需 `tika-core`，不含 `tika-parsers-*`**（官方文档：仅 Core 时 `DefaultDetector` 使用 Mime Magic 与 Resource Name 检测）
 - 不引入 `aliyun-sdk-oss` / `minio`——避免“多 SDK 多实现”的混乱
 
 ## 注意事项

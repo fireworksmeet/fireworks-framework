@@ -66,11 +66,12 @@ public class MessageAutoConfiguration {
      * <p>当 {@code async.enabled=true} 时注入异步线程池，否则传 null 降级同步执行。
      */
     @Bean
-    public MessagePushService messagePushService(MessageRouterService routerService,
+    public MessagePushService messagePushService(MessageProperties properties,
+                                                 MessageRouterService routerService,
                                                  MessageDeduplicationService deduplicationService,
                                                  MessageRecordService recordService,
                                                  @Nullable @Qualifier(MSG_ASYNC_EXECUTOR) Executor msgAsyncExecutor) {
-        return new MessagePushService(routerService, deduplicationService, recordService, msgAsyncExecutor);
+        return new MessagePushService(properties, routerService, deduplicationService, recordService, msgAsyncExecutor);
     }
 
     @Bean

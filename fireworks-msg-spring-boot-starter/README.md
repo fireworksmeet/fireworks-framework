@@ -25,7 +25,8 @@
 
 ### 2. 初始化数据库
 
-执行 `resources/db.sql` 创建 `message_record` 表（含 `uk_message_id` 唯一索引，是 DB 层去重的关键）。
+执行 `script/db/message_record.sql` 创建 `message_record` 表（含 `uk_message_id` 唯一索引，是 DB 层去重的关键）。
+脚本在**模块根目录**的 `script/db/` 下（随源码交付、不进 jar）。
 `send_time` / `next_retry_time` / `created_at` / `updated_at` 均使用 **`timestamptz`（带时区）**，与实体 `Instant` 字段（绝对时间点）语义一致，跨时区部署时保持时间准确。
 
 ### 3. 配置
@@ -126,7 +127,60 @@ MessageResult result = messagePushService.sendSync(email);
 ### 5. 消息类型与 ID
 
 - 消息 ID 通过 `messagePushService.generateMessageId(MessageType)` 生成（依赖 `fireworks-id` 的 `IdUtil`），前缀如 `ws_`、`sms_`、`email_`。
-- `messageId` 是去重与记录的主键，**广播消息必须提供**。
+- `messageId` 是去重与记录的主键，**广播消息必须提供**。调用方自己提供 `messageId` 时，**不需要任何 ID 配置**。
+
+**取号来源由 `fireworks.message.push.id.domain` 决定**：
+
+| 配置 | 取号来源 | 说明 |
+| --- | --- | --- |
+| **不配置（默认）** | `IdUtil.getShareIdAsString()`（CosId 共享生成器） | **开箱即用**：无需在 CosId 里声明任何 provider，也不占用业务号段 |
+| 配成业务标识 | `IdUtil.getIdAsString(该值)` | 需要控制起点 / 位数时才用，且必须同步声明同名 provider |
+
+**ID 形态**：数字部分是 CosId 转换器输出的 **radix62（0-9A-Za-z）定长 11 位**，例如 `email_000000001Ii`
+（62<sup>11</sup> &gt; `Long.MAX_VALUE`，所以任何 long 都装得下）。三个由此而来的性质：
+
+- **定长 11 位**：号段模式（短号）与雪花模式（19 位十进制）渲染成**同一宽度**，形态不随模式变化；
+- **字典序 = 数值序**：定长补零才成立，因此 `ORDER BY message_id` 等价于按取号先后排序（十进制文本没有补零，字典序会错：`"10" < "9"`）；
+- 比十进制（最多 19 位）和 UUID（36 位）都短。
+
+想改形态（如加日期前缀 `20261006_…`）用 `cosid.segment.share.converter.*` / `cosid.snowflake.share.converter.*`；
+配了 `id.domain` 时用该 provider 自己的 `converter.*`。若不想依赖任何 ID 基础设施，也可把
+`MessagePushService#nextMessageId()` 换成 `IdUtil.getUUID()`（32 位紧凑格式、**无序**，唯一索引会随机插入）。
+
+```yaml
+fireworks:
+  message:
+    push:
+      id:
+        domain: MESSAGE_ID          # 可选；不配则用共享生成器
+```
+
+要指定专属标识时，还必须在 CosId 里声明**同名** provider：
+
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  segment:
+    enabled: true                   # 与 cosid.snowflake.enabled 互斥
+    provider:
+      MESSAGE_ID:                   # ← 与 id.domain 完全一致（区分大小写）
+        offset: 1                   # 新序列的起点；只有「沿用旧域」时才必须 > 该域的历史 max_id
+        step: 10000
+```
+
+> ⚠️ 上面只是 **provider 部分**；完整的号段配置还包括**建表脚本**与 PostgreSQL 必须覆盖的两条 SQL
+> （以及 `jdbc` 分发器设置），见 `fireworks-id-spring-boot-starter/README.md` 的「模板 1」。
+> **只配这一段会因缺表 / SQL 方言而失败。**
+> 若用雪花模式，同样声明 `cosid.snowflake.provider.MESSAGE_ID` 即可（`IdUtil` 对两种模式行为一致）。
+
+> ⚠️ **不要用业务序列给消息发号**：本模块此前的固定契约是 `SERIAL_NUMBER`——那是「用于流水号」的
+> **业务序列**，用它发消息会消耗业务流水号的号段，并在流水号里留下来源不明的跳号。
+> 消息 ID 是技术标识，默认的共享生成器正为此设计。存量部署若要保留旧行为，可显式配
+> `id.domain: SERIAL_NUMBER`（不推荐，仍会污染流水号）；直接切默认则消息 ID 换号源，不影响唯一性与 `uk_message_id` 去重。
+
+> ⚠️ 用默认（不配 `id.domain`）时依赖 CosId 的共享生成器（`cosid.segment.share.enabled` /
+> `cosid.snowflake.share.enabled`，**默认即 true**）。若按 `fireworks-id` 的 README 把 share 关掉以减少号段占用，
+> 首次发消息会 fail-fast，报错信息会提示该开关。
 
 ## 去重机制（双层）
 

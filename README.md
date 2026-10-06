@@ -44,7 +44,7 @@ fireworks-api-spring-boot-starter          ─┤ API 层（Result/分页/BizExc
 | `fireworks-export` | 导出 | EasyExcel 流式导出/对象存储落库/Cursor 批处理/合并单元格 |
 | `fireworks-msg` | 消息推送 | WebSocket/短信(阿里/腾讯)/邮件/去重/限流/记录 |
 | `fireworks-saga` | 分布式事务 | Saga 编排/补偿/CAS 状态机/定时恢复 |
-| `fireworks-id` | ID 生成 | 腾讯 Leaf 号段/`IdUtil`/`IdType` |
+| `fireworks-id` | ID 生成 | CosId 号段/雪花双模式（互斥）/`IdUtil` |
 | `fireworks-token` | Token | JWT 签发解析/安全随机 Token/Bearer 支持 |
 | `fireworks-rest-client` | HTTP 客户端 | RestClient 连接池/超时/负载均衡/接口代理 |
 | `fireworks-webflux-client` | 响应式客户端 | WebClient 连接池/超时/负载均衡/接口代理 |
@@ -123,6 +123,7 @@ fireworks-api-spring-boot-starter          ─┤ API 层（Result/分页/BizExc
 - **聚合根** `pom.xml`：声明全部子模块，`<modules>` 顺序即构建顺序。
 - **版本管理**：所有第三方版本集中在 `fireworks-dependencies` 的 `<properties>`。
 - **模块依赖**：`common` 为最底层，被绝大多数模块依赖；`api`、`redis`、`id` 等作为其他模块的基础依赖。
+- **组件表脚本**：各 starter 自带的建表脚本放在**该模块根目录**的 `script/db/` 下（不进 jar，部署时从源码仓库取用）。
 
 ## License
 

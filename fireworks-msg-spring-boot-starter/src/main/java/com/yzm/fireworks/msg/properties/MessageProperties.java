@@ -38,6 +38,11 @@ public class MessageProperties {
     private EmailConfig email = new EmailConfig();
 
     /**
+     * 消息 ID 生成配置
+     */
+    private IdConfig id = new IdConfig();
+
+    /**
      * 消息去重配置
      */
     private DeduplicationConfig deduplication = new DeduplicationConfig();
@@ -253,5 +258,32 @@ public class MessageProperties {
          * Redis key前缀
          */
         private String redisKeyPrefix = "message:dedup:";
+    }
+
+    /**
+     * 消息 ID 生成配置
+     *
+     * <p>消息 ID 是技术标识（去重键 + 记录主键），不含业务含义，因此默认走 CosId 的<b>共享生成器</b>，
+     * 无需声明任何 provider；只有需要控制起点 / 位数时才指定专属业务标识。
+     */
+    @Data
+    public static class IdConfig {
+
+        /**
+         * 生成消息 ID 使用的 CosId 业务标识（CosId 术语：provider 名）。
+         *
+         * <p>值须与 {@code cosid.segment.provider.<name>}（雪花模式下
+         * {@code cosid.snowflake.provider.<name>}）中的 {@code <name>} 完全一致（区分大小写）。
+         *
+         * <p><b>留空（默认）</b>：用共享生成器 {@code IdUtil.getShareIdAsString()} 取号——开箱即用，
+         * 不占用任何业务号段，也不需要在 CosId 里做任何声明。
+         *
+         * <p><b>配置后</b>：用 {@code IdUtil.getIdAsString(该值)} 取号；若未声明同名 provider，
+         * 首次取号会 fail-fast 抛出「未声明业务标识」并列出已注册标识。
+         *
+         * <p>两条路径都输出 <b>radix62 定长 11 位</b>（如 {@code 000000001Ii}），因此消息 ID 形态不随
+         * 是否配置本项、也不随 CosId 模式变化；定长补零还保证字典序 = 数值序。
+         */
+        private String domain;
     }
 }
