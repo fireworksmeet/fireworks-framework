@@ -1,7 +1,6 @@
 package com.yzm.fireworks.api.util;
 
-import com.baomidou.mybatisplus.annotation.IEnum;
-import com.yzm.fireworks.api.enums.IOptionEnum;
+import com.yzm.fireworks.api.enums.CodeEnum;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -15,19 +14,19 @@ import java.util.function.Predicate;
 public class EnumUtil {
 
     /**
-     * 基于 IEnum 接口的 match 方法
+     * 基于 {@link CodeEnum} 接口的 match 方法
      * <p>
-     * 适用于实现了 {@link IEnum} 的枚举，通过 {@link IEnum#getValue()} 进行匹配
+     * 通过 {@link CodeEnum#getCode()} 进行匹配
      */
-    public static <T extends IEnum<R>, R extends Serializable> T match(Class<T> enumClass, R value) {
-        return match(enumClass, value, null);
+    public static <T extends CodeEnum<R>, R extends Serializable> T match(Class<T> enumClass, R code) {
+        return match(enumClass, code, null);
     }
 
-    public static <T extends IEnum<R>, R extends Serializable> T match(Class<T> enumClass, R value, T def) {
-        if (value == null) {
+    public static <T extends CodeEnum<R>, R extends Serializable> T match(Class<T> enumClass, R code, T def) {
+        if (code == null) {
             return def;
         }
-        return find(enumClass.getEnumConstants(), item -> value.equals(item.getValue()), def);
+        return find(enumClass.getEnumConstants(), item -> code.equals(item.getCode()), def);
     }
 
     private static <T> T find(T[] enums, Predicate<T> predicate, T defaultValue) {

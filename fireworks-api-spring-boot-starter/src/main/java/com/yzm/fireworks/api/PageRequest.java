@@ -36,11 +36,4 @@ public class PageRequest {
      */
     @Schema(description = "上一页返回的游标（Cursor模式使用）")
     private String cursor;
-
-    /**
-     * 是否进行 count 查询（大表/深分页优化可设为 false）
-     */
-    @Schema(description = "是否进行 count 查询", example = "true")
-    @Builder.Default
-    private boolean searchCount = true;
 }

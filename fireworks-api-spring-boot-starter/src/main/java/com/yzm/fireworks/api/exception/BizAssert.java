@@ -35,7 +35,7 @@ public class BizAssert {
     }
 
     public static void isTrue(Result<?> result) {
-        if (result.fail()) {
+        if (result.isFailure()) {
             throw new BizException(result);
         }
     }

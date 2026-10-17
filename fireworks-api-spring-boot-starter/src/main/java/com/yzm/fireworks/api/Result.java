@@ -2,9 +2,6 @@ package com.yzm.fireworks.api;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yzm.fireworks.api.exception.BizException;
 import com.yzm.fireworks.common.enums.CommonExceptionStatus;
 import com.yzm.fireworks.common.enums.ExceptionStatus;
@@ -12,27 +9,32 @@ import com.yzm.fireworks.common.util.SpringContextHolder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static com.yzm.fireworks.common.constants.StringPool.*;
+import static com.yzm.fireworks.common.constants.StringPool.UNKNOWN;
 
 
 /**
  * @author JYuan
  * 统一响应结果
+ * <p>
+ * 【契约】只承载 {@code code / data / message / system} 四段信息：
+ * <ul>
+ *   <li>失败原因由 {@code code}（精确语义）+ {@code message}（面向用户的提示）表达；</li>
+ *   <li>刻意不提供结构化的 {@code error} 载荷：框架默认开启校验 fail-fast，一次请求只可能有一个失败原因，
+ *       列表形态无从发挥；而 {@code Object} 类型的载荷又是无法约束的隐式契约，跨服务时客户端只能猜结构。
+ *       业务上下文（如库存余量）应放进 {@code data} 或通过专用错误码表达。</li>
+ * </ul>
+ * <p>
+ * 【刻意不重写 {@code toString()}】需要 JSON 日志时由调用方用 {@code JsonUtil} 显式序列化。
+ * 框架在此处持有一个 {@code ObjectMapper} 依赖，只为日志服务，收益与耦合不成正比；且重写后一旦
+ * 序列化失败或容器未就绪，降级路径反而可能把 {@code data} 中的敏感字段明文带进日志。
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
-@Slf4j
 public class Result<T> {
 
     /**
@@ -47,13 +49,6 @@ public class Result<T> {
      */
     @Schema(title = "结果集")
     protected T data;
-
-    /**
-     * 错误结构化参数
-     */
-    @Schema(title = "错误结构化参数")
-    @Setter
-    protected Object error;
 
     /**
      * 错误信息
@@ -74,14 +69,23 @@ public class Result<T> {
         return this;
     }
 
+    /**
+     * 是否成功。
+     * <p>
+     * 必须保留 {@link JsonIgnore}：{@code isSuccess()} 符合 JavaBean 属性规范，Jackson 会把它识别为
+     * {@code success} 属性，漏掉注解会让每个响应多出一个字段，违反 api.md 约定的响应结构。
+     */
     @JsonIgnore
-    public boolean success() {
+    public boolean isSuccess() {
         return CommonExceptionStatus.SUCCESS.getCode() == this.code;
     }
 
+    /**
+     * 是否失败，理由与 {@link #isSuccess()} 相同，同样需要 {@link JsonIgnore}。
+     */
     @JsonIgnore
-    public boolean fail() {
-        return !success();
+    public boolean isFailure() {
+        return !isSuccess();
     }
 
     // ==================== 静态工厂方法 ====================
@@ -97,166 +101,44 @@ public class Result<T> {
         return rst;
     }
 
-    public static <R, E> Result<R> error(E error) {
-        return error(CommonExceptionStatus.SERVER_ERROR, error);
-    }
-
     public static <R> Result<R> error(ExceptionStatus status) {
-        return error(status, null);
-    }
-
-    public static <R, E> Result<R> error(ExceptionStatus status, E error) {
         Result<R> rst = new Result<>();
         rst.setCode(status.getCode());
         rst.setMessage(status.getMessage());
-        rst.setError(error);
         rst.setSystem(getApplicationName());
         return rst;
     }
 
-    public static <R, E> Result<R> error(Result<E> result) {
-        Result<R> rst = new Result<>();
-        rst.setCode(result.getCode());
-        rst.setMessage(result.getMessage());
-        rst.setError(result.getError());
-        rst.setSystem(result.getSystem() == null ? getApplicationName() : result.getSystem());
-        return rst;
-    }
-
     public static <R> Result<R> error(int code, String message) {
-        return error(code, message, null);
+        return error(code, message, getApplicationName());
     }
 
-    public static <R, E> Result<R> error(int code, String message, E error) {
-        return error(code, message, error, getApplicationName());
-    }
-
-    public static <R, E> Result<R> error(int code, String message, E error, String system) {
+    public static <R> Result<R> error(int code, String message, String system) {
         Result<R> rst = new Result<>();
         rst.setCode(code);
         rst.setMessage(message);
-        rst.setError(error);
         rst.setSystem(null == system ? getApplicationName() : system);
+        return rst;
+    }
+
+    /**
+     * 用另一个结果填充错误信息，用于跨服务透传（{@code code} / {@code message} / {@code system} 保持不变）。
+     */
+    public static <R> Result<R> error(Result<?> result) {
+        Result<R> rst = new Result<>();
+        rst.setCode(result.getCode());
+        rst.setMessage(result.getMessage());
+        rst.setSystem(result.getSystem() == null ? getApplicationName() : result.getSystem());
         return rst;
     }
 
     // ==================== 私有工具方法 ====================
 
     /**
-     * 懒加载单例 ObjectMapper，优先从 Spring 容器获取，容器不可用时使用默认实例。
-     * 避免每次调用都 new ObjectMapper() 带来的性能损耗和配置不一致问题。
-     */
-    private static volatile ObjectMapper fallbackObjectMapper;
-
-    private static ObjectMapper getObjectMapper() {
-        ObjectMapper objectMapper = SpringContextHolder.getBean(ObjectMapper.class);
-        if (!ObjectUtils.isEmpty(objectMapper)) {
-            return objectMapper;
-        }
-        // 双重检查锁，保证 fallback 实例的线程安全
-        if (fallbackObjectMapper == null) {
-            synchronized (Result.class) {
-                if (fallbackObjectMapper == null) {
-                    fallbackObjectMapper = new ObjectMapper();
-                }
-            }
-        }
-        return fallbackObjectMapper;
-    }
-
-    /**
      * 获取应用名称，Spring 容器未就绪时返回 "unknown"，避免 NPE。
      */
     private static String getApplicationName() {
         return SpringContextHolder.getProperty("spring.application.name", UNKNOWN);
-    }
-
-    private <E> E convertObject(Object value, Class<E> eClass) {
-        if (null == value) {
-            return null;
-        }
-        return getObjectMapper().convertValue(value, eClass);
-    }
-
-    /**
-     * 将 error 字段转换为指定类型。
-     * <p>
-     * 修复：原代码 error instanceof List 时调用 getErrors() 但未 return，
-     * 导致结果被丢弃后继续尝试将 List 转为单个对象，引发转换异常。
-     */
-    public <E> E getError(Class<E> eClass) {
-        if (null == error) {
-            return null;
-        }
-        if (error instanceof List) {
-            // error 是集合时，取第一个元素返回（与 getErrors 保持语义区分）
-            List<E> errors = getErrors(eClass);
-            return ObjectUtils.isEmpty(errors) ? null : errors.getFirst();
-        }
-        return convertObject(error, eClass);
-    }
-
-    @SuppressWarnings("rawtypes")
-    public <E> List<E> getErrors(Class<E> eClass) {
-        if (null == error) {
-            return null;
-        }
-        List<E> result = new ArrayList<>();
-        if (error instanceof List) {
-            for (Object o : (List) error) {
-                result.add(convertObject(o, eClass));
-            }
-        } else {
-            result.add(convertObject(error, eClass));
-        }
-
-        return result;
-    }
-
-    /**
-     * 从错误消息字符串解析 Result。
-     */
-    @SuppressWarnings("rawtypes")
-    public static Result fromErrorMessage(String message) {
-        Result result = error(CommonExceptionStatus.SERVER_ERROR);
-        if (StringUtils.isEmpty(message)) {
-            return result;
-        } else if (message.contains(QUOTATION + CODE + QUOTATION + COLON)) {
-            try {
-                String trimmed = message.trim();
-                if (trimmed.startsWith(LEFT_BRACE)) {
-                    // JSON 对象
-                    result = getObjectMapper().readValue(message, Result.class);
-                } else if (trimmed.startsWith(LEFT_SQUARE_BRACKET)) {
-                    // JSON 数组，取第一个元素
-                    List<Result> results = getObjectMapper().readValue(message, new TypeReference<List<Result>>() {
-                    });
-                    if (results != null && !results.isEmpty()) {
-                        result = results.getFirst();
-                    }
-                } else {
-                    result = error(new ExceptionStatus() {
-                        @Override
-                        public int getCode() {
-                            return CommonExceptionStatus.SERVER_ERROR.getCode();
-                        }
-
-                        @Override
-                        public String getMessage() {
-                            return message;
-                        }
-                    });
-                }
-            } catch (Exception e) {
-                log.debug("Failed to parse error data", e);
-            }
-        } else {
-            result.setMessage(message);
-        }
-        if (result.getCode() == CommonExceptionStatus.SUCCESS.getCode()) {
-            result.setCode(CommonExceptionStatus.SERVER_ERROR.getCode());
-        }
-        return result;
     }
 
     // ==================== 内部服务调用结果处理 ====================
@@ -274,7 +156,7 @@ public class Result<T> {
      */
     @JsonIgnore
     public T getDataOrThrow() {
-        if (fail()) {
+        if (isFailure()) {
             throw new BizException(this);
         }
         return this.data;
@@ -292,7 +174,7 @@ public class Result<T> {
      * @return data 或 fallback 结果
      */
     public T getDataOrElse(Supplier<T> fallback) {
-        if (fail()) {
+        if (isFailure()) {
             return fallback.get();
         }
         return this.data;
@@ -304,19 +186,19 @@ public class Result<T> {
      * 适用场景：服务 A 调用服务 B 失败后，需要将 B 的错误原样封装后返回给 A 的调用方。
      * <pre>{@code
      *   Result<OrderDTO> orderResult = orderService.create(req);
-     *   if (orderResult.fail()) {
+     *   if (orderResult.isFailure()) {
      *       return orderResult.propagate();
      *   }
      * }</pre>
      *
      * @param <R> 目标泛型
-     * @return 携带原始错误信息的 Result，code/message/error/system 均保持不变
+     * @return 携带原始错误信息的 Result，code/message/system 均保持不变
      * @throws IllegalStateException 若在成功状态下调用（success 状态无需传播错误）
      */
     @JsonIgnore
     public <R> Result<R> propagate() {
-        if (success()) {
-            throw new IllegalStateException("不能对成功的 Result 调用 propagate()，请先用 fail() 判断");
+        if (isSuccess()) {
+            throw new IllegalStateException("不能对成功的 Result 调用 propagate()，请先用 isFailure() 判断");
         }
         return Result.error(this);
     }
@@ -333,7 +215,7 @@ public class Result<T> {
      * @return this（支持链式调用）
      */
     public Result<T> onSuccess(Consumer<T> consumer) {
-        if (success()) {
+        if (isSuccess()) {
             consumer.accept(this.data);
         }
         return this;
@@ -346,7 +228,7 @@ public class Result<T> {
      * @return this（支持链式调用）
      */
     public Result<T> onFailure(Consumer<Result<T>> consumer) {
-        if (fail()) {
+        if (isFailure()) {
             consumer.accept(this);
         }
         return this;
@@ -358,23 +240,16 @@ public class Result<T> {
      * 将 data 转换为另一种类型，返回新的 Result 对象。
      */
     public <R> Result<R> convert(Function<T, R> mapper) {
-        if (fail()) {
+        if (isFailure()) {
             // 失败时直接传播错误，无需转换 data
             return propagate();
         }
         Result<R> rst = new Result<>();
         rst.setCode(this.code);
         rst.setMessage(this.message);
-        rst.setError(this.error);
         rst.setSystem(this.system);
         rst.setData(this.data == null ? null : mapper.apply(this.data));
         return rst;
-    }
-
-    @Override
-    public String toString() {
-        return "Result{" + "code=" + code + ", data=" + data + ", error=" + error + ", message=" + message + ", system="
-                + system + "}";
     }
 
 }

@@ -1,16 +1,16 @@
 # fireworks-api-spring-boot-starter
 
-API 层公共能力 Starter，提供**统一响应**、**分页响应**、**业务异常**、**业务断言**、**枚举工具**与**操作日志注解**，以及可选的 Hibernate Validator 与选项枚举扫描。
+API 层公共能力 Starter，提供**统一响应**、**分页响应**、**业务异常**、**业务断言**与**枚举契约/工具**，以及可选的 Hibernate Validator 与选项枚举扫描。
 
 ## 功能特性
 
-- **统一响应 `Result<T>`**：code / data / message / error / system 五段结构，提供丰富的静态工厂与链式处理、错误透传、数据转换方法。
-- **分页响应 `PageResponse<T>`**：同时支持传统 **Offset 模式**（兼容 MyBatis-Plus `IPage`）与 **Cursor 游标模式**（瀑布流 / 海量数据）。
+- **统一响应 `Result<T>`**：code / data / message / system 四段结构，提供丰富的静态工厂与链式处理、错误透传、数据转换方法。
+- **分页响应 `PageResponse<T>`**：同时支持传统 **Offset 模式**（接收记录列表 + 分页元信息，**与任何 ORM 无关**）与 **Cursor 游标模式**（瀑布流 / 海量数据）。
 - **带 footer 合计的分页 `PageWithFooterResponse<T>`**：分页结果附带合计行。
 - **业务异常 `BizException` / 断言 `BizAssert`**：不打印堆栈提升性能，断言快速失败。
-- **操作日志注解 `@OptLog`**：声明式标注业务操作，配合 `fireworks-web` 模块的 `@EnableOptLog` 拦截。
-- **枚举工具 `EnumUtil` / 游标工具 `CursorUtil`**：枚举值匹配、游标编解码。
-- **选项枚举扫描**：扫描实现 `IOptionEnum` 的枚举供前端下拉选项使用。
+- **枚举契约 `CodeEnum<V>`**：以 `getCode()` 统一「入库值 / 前端交互值 / JSON 序列化值」，`getLabel()` 提供展示文案。
+- **枚举工具 `EnumUtil` / 游标工具 `CursorUtil`**：按 `CodeEnum#getCode()` 匹配枚举、游标编解码。
+- **暴露枚举扫描**：扫描标注 `@ExposedEnum` 的枚举，供前端下拉字典使用。
 - **Hibernate Validator**：默认注册 fail-fast 校验器。
 
 ## 快速开始
@@ -32,7 +32,7 @@ API 层公共能力 Starter，提供**统一响应**、**分页响应**、**业�
 return Result.ok(data);
 
 // 失败（携带业务状态码）
-return Result.error(CommonExceptionStatus.PARAM_NOT_VALID, "参数不合法");
+return Result.error(CommonExceptionStatus.REQUEST_PARAMS_ERROR, "参数不合法");
 
 // 链式处理
 Result<UserVO> result = userService.getById(id)
@@ -50,20 +50,20 @@ UserDTO user = userService.getById(id).getDataOrThrow();
 UserDTO user = userService.getById(id).getDataOrElse(() -> defaultUser);
 
 // 将失败结果原样透传为其他类型的 Result
-if (orderResult.fail()) {
+if (orderResult.isFailure()) {
     return orderResult.propagate();
 }
 ```
 
 ### 3. 分页响应 `PageResponse`
 
-**Offset 模式（MyBatis-Plus）**：
+**Offset 模式**（与任何 ORM / 手写 SQL 无关，只接收记录列表与分页元信息）：
 
 ```java
-IPage<User> page = new Page<>(current, size);
-userMapper.selectPage(page, queryWrapper);
+List<User> records = userMapper.selectPage(queryWrapper);  // 任意持久化方案均可
+long total = userMapper.countByQuery(queryWrapper);
 
-return Result.ok(PageResponse.create(page, UserVO::from));
+return Result.ok(PageResponse.ofOffset(records, current, size, total, UserVO::from));
 ```
 
 **Cursor 游标模式（瀑布流）**：
@@ -87,31 +87,23 @@ throw new BizException(CommonExceptionStatus.SERVER_ERROR);
 
 // 断言（快速失败）
 BizAssert.notNull(user, CommonExceptionStatus.USER_NOT_FOUND);
-BizAssert.isTrue(amount > 0, CommonExceptionStatus.PARAM_NOT_VALID);
+BizAssert.isTrue(amount > 0, CommonExceptionStatus.REQUEST_PARAMS_ERROR);
 ```
 
-### 5. 操作日志注解 `@OptLog`
+### 5. 选项枚举扫描
 
-```java
-@OptLog(module = "用户管理", type = OptLogType.UPDATE, description = "更新用户")
-public void updateUser(UserDTO user) { ... }
-```
-
-> 需配合 `fireworks-web-spring-boot-starter` 的 `@EnableOptLog` 才能被拦截处理。
-
-### 6. 选项枚举扫描
-
-实现 `IOptionEnum` 的枚举，并开启扫描：
+在需要暴露的枚举上标注 `@ExposedEnum`，并开启扫描。扫描范围默认取启动类所在包，跨包时用 `scan-packages` 覆盖：
 
 ```yaml
 fireworks:
-  option-enum:
+  exposed-enum:
     enabled: true
+    # 可选：不配置则使用启动类所在包
     scan-packages:
-      - com.yourcompany.**.enums
+      - com.yourcompany.enums
 ```
 
-### 7. 校验器
+### 6. 校验器
 
 默认注册 fail-fast 的 Hibernate Validator（`fireworks.api.validator.enabled=false` 可关闭）：
 
@@ -132,10 +124,10 @@ fireworks:
 | `PageWithFooterResponse<T>` | 带合计行的分页响应 |
 | `BizException` | 业务异常 |
 | `BizAssert` | 业务断言 |
-| `@OptLog` / `OptLogType` | 操作日志注解 / 操作类型 |
-| `EnumUtil` | 枚举值匹配工具 |
+| `EnumUtil` | 按 `CodeEnum#getCode()` 匹配枚举的工具 |
 | `CursorUtil` | 游标编解码工具 |
-| `IOptionEnum` | 选项枚举接口 |
+| `CodeEnum<V>` | 带业务编码与展示文案的枚举契约 |
+| `@ExposedEnum` | 标记枚举对外暴露（供字典扫描） |
 
 ## 注意事项
 
