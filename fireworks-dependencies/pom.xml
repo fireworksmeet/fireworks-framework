@@ -27,12 +27,12 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <rocketmq-spring-boot-starter.version>2.3.5</rocketmq-spring-boot-starter.version>
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
-        <mybatis-typehandlers-jsr310.version>1.0.2</mybatis-typehandlers-jsr310.version>
         <janino.version>3.1.12</janino.version>
+        <!-- 访问日志。固定在 Boot 3 世代线，不跟随 4.x（4.x 主线面向 Spring Boot 4） -->
+        <logbook.version>3.12.3</logbook.version>
         <springdoc-openapi.version>2.8.14</springdoc-openapi.version>
         <swagger-annotations.version>2.2.41</swagger-annotations.version>
         <nimbus-jose-jwt.version>9.31</nimbus-jose-jwt.version>
-        <mybatis-spring.version>3.0.5</mybatis-spring.version>
         <xxl-job-core.version>3.3.1</xxl-job-core.version>
         <easyexcel.version>4.0.3</easyexcel.version>
         <modelmapper-spring-boot-starter.version>1.1.0</modelmapper-spring-boot-starter.version>
@@ -48,13 +48,10 @@
         <ip2region.version>3.3.4</ip2region.version>
         <jbcrypt.version>0.4</jbcrypt.version>
         <aj-captcha.version>1.4.0</aj-captcha.version>
-        <apm-toolkit-logback-1.x.version>9.0.0</apm-toolkit-logback-1.x.version>
-        <apm-toolkit-trace.version>9.0.0</apm-toolkit-trace.version>
         <p6spy.version>3.9.1</p6spy.version>
         <latencyutils.version>2.0.3</latencyutils.version>
         <powerjob.version>5.1.2</powerjob.version>
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
-        <micrometer-tracing.version>1.7.0</micrometer-tracing.version>
         <bcprov-jdk18on.version>1.84</bcprov-jdk18on.version>
     </properties>
 
@@ -102,13 +99,6 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
-                <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-bom</artifactId>
-                <version>${mybatis-plus.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
                 <version>${commons-lang3.version}</version>
@@ -117,6 +107,11 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-collections4</artifactId>
                 <version>${commons-collections4.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.zalando</groupId>
+                <artifactId>logbook-spring-boot-starter</artifactId>
+                <version>${logbook.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.yzm.fireworks</groupId>
@@ -160,7 +155,12 @@
             </dependency>
             <dependency>
                 <groupId>com.yzm.fireworks</groupId>
-                <artifactId>fireworks-web-spring-boot-starter</artifactId>
+                <artifactId>fireworks-webmvc-spring-boot-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yzm.fireworks</groupId>
+                <artifactId>fireworks-tracing-spring-boot-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
@@ -190,23 +190,26 @@
             </dependency>
             <dependency>
                 <groupId>com.yzm.fireworks</groupId>
-                <artifactId>fireworks-saga-spring-boot-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.yzm.fireworks</groupId>
                 <artifactId>fireworks-oplog-spring-boot-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
-                <groupId>org.mybatis</groupId>
-                <artifactId>mybatis-spring</artifactId>
-                <version>${mybatis-spring.version}</version>
+                <groupId>com.yzm.fireworks</groupId>
+                <artifactId>fireworks-outbox-spring-boot-starter</artifactId>
+                <version>${revision}</version>
             </dependency>
             <dependency>
-                <groupId>org.mybatis</groupId>
-                <artifactId>mybatis-typehandlers-jsr310</artifactId>
-                <version>${mybatis-typehandlers-jsr310.version}</version>
+                <groupId>com.yzm.fireworks</groupId>
+                <artifactId>fireworks-mybatis-plus-spring-boot-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <!-- 官方 BOM：一揽子对齐 MyBatis-Plus 各 artifact 版本，下游直接声明任意 MP 模块均无需写 version -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-bom</artifactId>
+                <version>${mybatis-plus.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -346,22 +349,6 @@
                 <groupId>com.anji-plus</groupId>
                 <artifactId>captcha-spring-boot-starter</artifactId>
                 <version>${aj-captcha.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.skywalking</groupId>
-                <artifactId>apm-toolkit-logback-1.x</artifactId>
-                <version>${apm-toolkit-logback-1.x.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.skywalking</groupId>
-                <artifactId>apm-toolkit-trace</artifactId>
-                <version>${apm-toolkit-trace.version}</version>
-            </dependency>
-            <!-- ⚡️ Micrometer Tracing 链路追踪官方桥接包，用于自动生成、传递 traceId 并记录到 MDC -->
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-tracing-bridge-brave</artifactId>
-                <version>${micrometer-tracing.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

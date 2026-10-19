@@ -15,17 +15,19 @@
         <module>fireworks-common-spring-boot-starter</module>
         <module>fireworks-xxljob-spring-boot-starter</module>
         <module>fireworks-rest-client-spring-boot-starter</module>
-        <module>fireworks-web-spring-boot-starter</module>
+        <module>fireworks-webmvc-spring-boot-starter</module>
+        <module>fireworks-tracing-spring-boot-starter</module>
         <module>fireworks-storage-spring-boot-starter</module>
         <module>fireworks-api-spring-boot-starter</module>
         <module>fireworks-export-spring-boot-starter</module>
         <module>fireworks-id-spring-boot-starter</module>
-        <module>fireworks-saga-spring-boot-starter</module>
         <module>fireworks-token-spring-boot-starter</module>
         <module>fireworks-security-spring-boot-starter</module>
         <module>fireworks-msg-spring-boot-starter</module>
         <module>fireworks-webflux-client-spring-boot-starter</module>
         <module>fireworks-oplog-spring-boot-starter</module>
+        <module>fireworks-outbox-spring-boot-starter</module>
+        <module>fireworks-mybatis-plus-spring-boot-starter</module>
     </modules>
 
     <properties>

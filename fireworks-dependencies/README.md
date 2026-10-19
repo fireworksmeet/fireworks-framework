@@ -4,8 +4,8 @@
 
 ## 作用
 
-- **统一版本管理**：集中定义 Spring Boot、Spring Cloud、Spring Cloud Alibaba、MyBatis-Plus、EasyExcel、RocketMQ、XXL-JOB、Redisson、MinIO、阿里云 OSS、Nimbus JOSE JWT、MapStruct、Lombok 等全部依赖版本。
-- **BOM 依赖管理**：通过 `<dependencyManagement>` 管理依赖版本，供所有 starter 模块在声明依赖时**省略版本号**。
+- **统一版本管理**：集中定义 Spring Boot、Spring Cloud、Spring Cloud Alibaba，以及各 Starter 实际使用的第三方库——MyBatis-Plus、LogBook、Redisson、RocketMQ、XXL-JOB、PowerJob、EasyExcel、AWS S3 SDK、SpringDoc OpenAPI、Nimbus JOSE JWT、MapStruct、Lombok 等的版本。
+- **BOM 依赖管理**：通过 `<dependencyManagement>` 管理依赖版本，供所有 starter 模块在声明依赖时**省略版本号**；官方提供 BOM 的依赖（`spring-boot-dependencies`、`mybatis-plus-bom`、`cosid-bom`）以 `import` 方式整包引入，保证同族 artifact 版本一致。
 - **基础环境**：作为 `fireworks-spring-boot-parent` 与各 starter 模块的父 POM（间接）来源。
 
 ## 使用方式
@@ -37,9 +37,13 @@
 | Spring Cloud | 2025.0.2 |
 | Spring Cloud Alibaba | 2025.0.0.0 |
 | MyBatis-Plus | 3.5.15 |
+| LogBook | 3.12.3 |
+| SpringDoc OpenAPI | 2.8.14 |
 | EasyExcel | 4.0.3 |
 | RocketMQ Starter | 2.3.5 |
 | XXL-JOB | 3.3.1 |
+| Redisson | 3.52.0 |
+| PowerJob | 5.1.2 |
 | Nimbus JOSE JWT | 9.31 |
 | Lombok | 1.18.46 |
 | MapStruct | 1.6.3 |
