@@ -1,7 +1,7 @@
 # 数据库设计规范
 
 > 定位：表结构、字段类型与命名、索引与约束、SQL 写法、写路径、迁移与变更安全。
-> 边界：Java 侧数据访问与对象转换见 `persistence.md`；分层与事务边界见 `spring-boot.md`；幂等见 `idempotency.md`；最终一致性与补偿见 `reliability.md`。
+> 边界：SQL 书写与 MyBatis 约定见 `mybatis.md`；对象转换见 `spring-boot.md` §3.5；分层与事务边界见 `spring-boot.md`；幂等见 `idempotency.md`；最终一致性与补偿见 `reliability.md`。
 >
 > **支持矩阵：PostgreSQL 12+ / MySQL 8.0.1+。** 正文以**规则**为主，所有方言差异集中在文首的方言差异总表，正文只在必要处提示。
 >
@@ -461,6 +461,15 @@ CREATE INDEX idx_xxx_prefix ON example (code(20));
 ```
 
 - 【禁止】把某一方言的前缀 / 表达式索引语法迁移到另一方言。
+- 【强制】普通 B-Tree 索引下，`WHERE` 中对**列**使用函数会导致索引失效，用范围查询替代：
+
+```sql
+-- 禁止：索引失效
+WHERE DATE(created_at) = '2026-08-17'
+
+-- 正确：范围查询
+WHERE created_at >= '2026-08-17 00:00:00' AND created_at < '2026-08-18 00:00:00'
+```
 
 ## 5.7 模糊查询
 
@@ -505,6 +514,8 @@ CREATE INDEX idx_xxx_prefix ON example (code(20));
 
 ## 6.5 分页
 
+【强制】任何分页查询必须明确排序条件；排序字段末尾**追加主键作为 tie-breaker**（如 `ORDER BY created_at DESC, id DESC`）。不加 tie-breaker 时，排序字段值相同的行在**不同页之间顺序不稳定**，会导致翻页出现重复或漏行。
+
 ### 6.5.1 默认：Keyset（游标）分页
 
 【推荐】列表接口优先使用 Keyset Pagination，特别是大表：
@@ -536,6 +547,13 @@ AND (created_at < ? OR (created_at = ? AND id < ?))
 - 【禁止】把业务逻辑写入触发器、存储过程、自定义函数：难以版本控制与调试，阻碍迁移与逻辑复制，且代码库外的逻辑对评审与 AI 不可见。
 - 【禁止】用触发器 / 扩展维护 `updated_at` 等审计字段（含 MySQL 原生 `ON UPDATE CURRENT_TIMESTAMP`），理由见 §8.3.1。
 - 【推荐】只读视图可用于收敛高频复杂查询口径，但必须与表结构同版本管理；物化视图按刷新成本单独评估。
+
+## 6.7 SQL 书写风格
+
+- 【强制】关键字大写：`SELECT`、`FROM`、`WHERE`、`ORDER BY`。
+- 【强制】合理换行：`SELECT`、`FROM`、`WHERE`、`ORDER BY` 各占一行。
+- 【强制】多表关联使用显式 `INNER JOIN`，而非 `WHERE` 隐式关联。
+- 【强制】字段命名使用下划线风格（`real_name`），**禁止驼峰**。
 
 ---
 
@@ -616,6 +634,13 @@ WHERE id = ?
 1. **SQL 静态检查（最推荐）**：CI 中扫描 `db/` 与 `**/resources/mapper/**/*.xml`，凡是涉及带 `updated_at` 列的 `INSERT` / `UPDATE` 必须出现 `updated_at`，否则构建失败。
 2. **Code Review 强制核对**：任何手写 `UPDATE` 与逻辑删除逐条核对。
 3. **定期巡检（仅作发现手段，不替代应用层）**：巡检"业务字段已变更但 `updated_at` 早于变更时间"的异常数据。
+
+### 8.3.4 禁止整行回写
+
+- 【禁止】**整行回写**：即"查出完整对象 → 修改个别字段 → 整行 `UPDATE` 回去"。
+  【说明】该模式的代价：把所有非空列全部 `SET` 一遍（无意义写入），并**放大并发覆盖风险**（把你没读到的字段一起覆盖）。
+- 【禁止】用一个"大而全"的更新对象无条件覆盖整行。
+- 【强制】"更新哪些列"必须由代码**显式表达**（显式列清单或条件更新），不得依赖隐式的"非 null 才更新"策略。
 
 ## 8.4 乐观锁
 

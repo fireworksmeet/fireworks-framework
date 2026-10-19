@@ -22,9 +22,10 @@ import lombok.Getter;
  *       （如 {@code 10xxxxx} 认证服务、{@code 20xxxxx} 业务服务）</li>
  * </ul>
  * <p>
- * 【重要】业务码与 HTTP 状态码是<b>两套体系，不共享数值空间</b>：
- * HTTP 状态由异常类型决定（见 {@code GlobalExceptionHandler} 的 {@code @ResponseStatus}），
- * 本枚举只表达业务语义。因此这里刻意避开 401 / 403 / 404 等 HTTP 状态码取值。
+ * 【重要】业务码与 HTTP 状态码是<b>两套体系，数值不共享</b>：业务码表达<b>精确原因</b>，
+ * HTTP 状态码表达<b>这次调用是否被正确处理完成</b>。业务失败一律返回 {@code 200}，
+ * 由响应体中的 {@code code} 分流（见 {@link ExceptionStatus}），因此这里刻意避开
+ * 401 / 403 / 404 等 HTTP 状态码取值。
  *
  * @author JYuan
  */
@@ -41,16 +42,24 @@ public enum CommonExceptionStatus implements ExceptionStatus {
 
     /**
      * 未认证 / 登录状态失效
+     * <p>
+     * 【约定】不建议由业务 {@code throw}：HTTP 401 由 Spring Security 的
+     * {@code AuthenticationEntryPoint} 统一返回，这样前端的登录态拦截器才能生效。
      */
     UNAUTHORIZED(1001, "登录状态已失效，请重新登录"),
 
     /**
      * 已认证但无操作权限
+     * <p>
+     * 【约定】同 {@link #UNAUTHORIZED}：HTTP 403 由 {@code AccessDeniedHandler} 统一返回。
      */
     FORBIDDEN(1002, "没有操作权限"),
 
     /**
      * 资源不存在
+     * <p>
+     * 【注意】此码用于<b>业务语义</b>的"查不到"（返回 200）。路由 / 静态资源不存在属协议层，
+     * 由容器返回 HTTP 404，两者不共用。
      */
     NOT_FOUND(1003, "请求的资源不存在"),
 

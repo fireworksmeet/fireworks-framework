@@ -10,16 +10,13 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-import com.yzm.fireworks.common.decorator.MdcTaskDecorator;
 import com.yzm.fireworks.common.sensitive.SensitiveModule;
 import com.yzm.fireworks.common.util.SpringContextHolder;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.task.TaskDecorator;
 import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
@@ -29,7 +26,7 @@ import java.math.BigInteger;
 /**
  * 通用基础自动配置。
  * <p>
- * 提供 MDC 上下文传递、Jackson 全局序列化定制（宽松解析、BigDecimal 字符串化、脱敏模块）等 common 基础设施。
+ * 提供 Jackson 全局序列化定制（宽松解析、BigDecimal 字符串化、脱敏模块）等 common 基础设施。
  * <p>
  * 说明：时间类型（LocalDateTime / Instant / OffsetDateTime 等）不在此处手动配置，统一交由
  * JavaTimeModule 默认实现按 ISO 格式序列化，且不设置全局 TimeZone，避免给无时区类型附加时区语义。
@@ -42,15 +39,6 @@ import java.math.BigInteger;
 @AutoConfiguration
 @Import(SpringContextHolder.class)
 public class CommonAutoConfiguration {
-
-    /**
-     * 注册 MDC / Tracing 上下文传递装饰器，供异步线程池使用。
-     */
-    @Bean
-    @ConditionalOnMissingBean(TaskDecorator.class)
-    public TaskDecorator mdcTaskDecorator() {
-        return new MdcTaskDecorator();
-    }
 
     /**
      * 注册 Jackson 全局定制器。

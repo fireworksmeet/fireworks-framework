@@ -251,7 +251,7 @@ void checkErrorCodes() {
 
 # 六、分页契约
 
-【说明】框架提供分页的**请求与响应契约**，但**不参与取数**——取数属 ORM / SQL 职责（Keyset 分页与索引写法见 `database.md`、`persistence.md`）。
+【说明】框架提供分页的**请求与响应契约**，但**不参与取数**——取数属 ORM / SQL 职责（Keyset 分页与索引写法见 `database.md`）。
 
 ## 6.1 请求：`PageRequest`
 
@@ -365,6 +365,7 @@ PageWithFooterResponse.ofCursor(records, size, mapper, nextCursorFunction, foote
 - 【强制】禁止在 DTO / Entity 上重复声明全局性序列化注解。
 - 【推荐】枚举对外返回稳定的业务编码 `code`（`@JsonValue`），**禁止**返回 `ordinal`。
 - 【禁止】直接暴露内部异常对象、数据库对象、代理对象。
+- 【禁止】核心业务查询返回不透明的 `Map<String, Object>`；优先定义明确的 DTO / Projection。
 
 ---
 

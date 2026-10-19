@@ -1,7 +1,7 @@
 # Java 语言与代码风格
 
 > 定位：Java 语言层面的写法与风格——状态机与业务状态、枚举、Lombok、Optional、集合与 Stream、常量、注释、格式与静态检查。
-> 边界：分层、依赖方向、命名、事务、异常见 `spring-boot.md`；API 契约与序列化见 `api.md`；数据库列与枚举取值规则见 `database.md`；数据访问与对象转换见 `persistence.md`。
+> 边界：分层、依赖方向、命名、事务、异常见 `spring-boot.md`；API 契约与序列化见 `api.md`；数据库列与枚举取值规则见 `database.md`；对象转换见 `spring-boot.md` §3.5；MyBatis 约定见 `mybatis.md`。
 >
 > 规范级别：【强制】违反即视为代码问题；【推荐】默认遵守；【禁止】原则上不得使用；【说明】背景解释。
 

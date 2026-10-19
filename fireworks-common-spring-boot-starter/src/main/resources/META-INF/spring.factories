@@ -1,0 +1,2 @@
+# Spring Boot 3.x 通过 spring.factories 加载 EnvironmentPostProcessor（.imports 仅用于 AutoConfiguration）
+org.springframework.boot.env.EnvironmentPostProcessor=com.yzm.fireworks.common.logging.LoggingDefaultsEnvironmentPostProcessor

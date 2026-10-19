@@ -46,10 +46,5 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-json</artifactId>
         </dependency>
-        <!-- ⚡️ 引入官方推荐的链路追踪桥接包，自动管理 traceId MDC 和跨服务请求透传 -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-tracing-bridge-brave</artifactId>
-        </dependency>
     </dependencies>
 </project>
