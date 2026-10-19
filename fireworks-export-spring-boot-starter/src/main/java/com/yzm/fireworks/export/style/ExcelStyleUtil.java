@@ -1,17 +1,25 @@
-package com.yzm.fireworks.export.model.util;
+package com.yzm.fireworks.export.style;
 
 import com.alibaba.excel.write.metadata.style.WriteCellStyle;
 import com.alibaba.excel.write.metadata.style.WriteFont;
-import org.apache.poi.ss.usermodel.*;
+import lombok.experimental.UtilityClass;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 
 /**
+ * 导出文件默认样式工具
+ * <p>
+ * 字体名称与字号由配置传入（{@code fireworks.export.font-name} / {@code fireworks.export.font-size}），
+ * 避免在容器环境下依赖某个固定字体、也避免把排版参数写死在框架里。
+ *
  * @author JYuan
  */
-public class StyleUtil {
-    private static final String FONT_NAME = "宋体";
-    private static final short FONT_SIZE = 11;
+@UtilityClass
+public class ExcelStyleUtil {
 
-    public static WriteCellStyle getHeadStyle() {
+    public static WriteCellStyle getHeadStyle(String fontName, short fontSize) {
         WriteCellStyle writeCellStyle = new WriteCellStyle();
 
         // 不填充背景色(表头默认填充)
@@ -20,9 +28,9 @@ public class StyleUtil {
         // 设置字体
         WriteFont writeFont = new WriteFont();
         // 字体名称
-        writeFont.setFontName(FONT_NAME);
+        writeFont.setFontName(fontName);
         // 字体大小
-        writeFont.setFontHeightInPoints(FONT_SIZE);
+        writeFont.setFontHeightInPoints(fontSize);
         // 是否加粗
         writeFont.setBold(false);
         writeCellStyle.setWriteFont(writeFont);
@@ -42,20 +50,15 @@ public class StyleUtil {
         return writeCellStyle;
     }
 
-    public static WriteCellStyle getContentStyle() {
+    public static WriteCellStyle getContentStyle(String fontName, short fontSize) {
         WriteCellStyle writeCellStyle = new WriteCellStyle();
-
-        // 设置背景颜色
-        // writeCellStyle.setFillBackgroundColor(IndexedColors.WHITE.getIndex());
-        // 如果想背景色设置成功需要将设置下面的填充模式，默认是FillPatternType.NO_FILL
-        // writeCellStyle.setFillPatternType(FillPatternType.SOLID_FOREGROUND);
 
         // 设置字体
         WriteFont writeFont = new WriteFont();
         // 字体名称
-        writeFont.setFontName(FONT_NAME);
+        writeFont.setFontName(fontName);
         // 字体大小
-        writeFont.setFontHeightInPoints(FONT_SIZE);
+        writeFont.setFontHeightInPoints(fontSize);
         writeCellStyle.setWriteFont(writeFont);
 
         // 水平左对齐

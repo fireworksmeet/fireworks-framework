@@ -1,9 +1,7 @@
 package com.yzm.fireworks.export;
 
+import com.yzm.fireworks.export.core.DefaultExcelExporter;
 import com.yzm.fireworks.export.core.ExcelExporter;
-import com.yzm.fireworks.export.core.ExcelExporterImpl;
-import com.yzm.fireworks.storage.service.S3StorageService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -23,14 +21,13 @@ public class ExportAutoConfiguration {
      * 导出器
      * <p>
      * 应用名在此处以 {@code @Value} 显式声明为方法参数，而非在
-     * {@link ExcelExporterImpl} 内使用字段注入，使依赖全部经由构造器传入、风格统一。
-     * S3StorageService 为可选依赖，未引入 storage 模块时注入 {@code null}。
+     * {@link DefaultExcelExporter} 内使用字段注入，使依赖全部经由构造器传入、风格统一。
+     * 文件落点不在此装配：由调用方传入 {@code ExportFileStore}，本模块不依赖任何存储实现。
      */
     @Bean
     @ConditionalOnMissingBean
     public ExcelExporter excelExporter(ExportProperties exportProperties,
-                                       @Autowired(required = false) S3StorageService storageService,
                                        @Value("${spring.application.name:fireworks-export}") String applicationName) {
-        return new ExcelExporterImpl(exportProperties, storageService, applicationName);
+        return new DefaultExcelExporter(exportProperties, applicationName);
     }
 }

@@ -16,15 +16,15 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * 通用重复列合并策略
+ * 重复单元格合并策略：相邻行主键相同时，合并指定列的单元格。
  * <p>
  * 注意：由于内部维护了导出的状态上下文，请勿将本类声明为单例 Bean 复用，
- * 每次导出请实例化新的 Strategy 对象（例如：new MergeRepeatCellStrategy(...)）。
+ * 每次导出请实例化新的 Strategy 对象（例如：new RepeatCellMergeStrategy(...)）。
  * </p>
  *
  * @author JYuan
  */
-public class MergeRepeatCellStrategy implements RowWriteHandler, WorkbookWriteHandler {
+public class RepeatCellMergeStrategy implements RowWriteHandler, WorkbookWriteHandler {
 
     /**
      * 主键所在单元格下标
@@ -46,11 +46,11 @@ public class MergeRepeatCellStrategy implements RowWriteHandler, WorkbookWriteHa
      */
     private final Map<Sheet, SheetMergeContext> sheetContextMap = new IdentityHashMap<>();
 
-    public MergeRepeatCellStrategy(int[] repeatCellIndices) {
+    public RepeatCellMergeStrategy(int[] repeatCellIndices) {
         this(0, repeatCellIndices);
     }
 
-    public MergeRepeatCellStrategy(int idIndex, int[] repeatCellIndices) {
+    public RepeatCellMergeStrategy(int idIndex, int[] repeatCellIndices) {
         this.idIndex = idIndex;
         this.repeatCellIndices = repeatCellIndices != null ? repeatCellIndices : new int[0];
     }

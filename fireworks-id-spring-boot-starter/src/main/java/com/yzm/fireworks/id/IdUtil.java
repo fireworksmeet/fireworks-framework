@@ -67,7 +67,7 @@ public class IdUtil {
      * {@code 1450421b6a4645cb8a203e498c6d6502}。
      * <p>
      * <b>为什么去连字符</b>：框架内 storage 的 {@code ObjectKeyUtil.uuid()}、export 的
-     * {@code ExcelWebUtil.uuid()} 也生成随机标识，此前只有本方法带连字符——统一为紧凑格式，
+     * {@code ExportFileUtil.uuid()} 也生成随机标识，此前只有本方法带连字符——统一为紧凑格式，
      * 避免同一框架出现两种 UUID 形态。值与标准形式完全一致，只是省略了分隔符。
      * <p>
      * <b>解析注意</b>：{@link UUID#fromString(String)} <b>不接受</b>这种无连字符写法

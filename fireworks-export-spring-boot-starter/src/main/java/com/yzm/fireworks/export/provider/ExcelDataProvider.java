@@ -1,11 +1,9 @@
-package com.yzm.fireworks.export.cursor;
+package com.yzm.fireworks.export.provider;
 
 import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.write.metadata.WriteSheet;
-import org.apache.ibatis.cursor.Cursor;
 import org.springframework.util.ObjectUtils;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,68 +13,76 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Excel 导出业务数据提供服务接口
+ * 导出数据提供者 SPI。
+ * <p>
+ * 业务方实现 {@link #writeData(ExcelWriter, WriteSheet, Object)} 提供数据，并可复用本接口提供的
+ * 流式批处理模板：按 {@code batchSize} 分批刷盘，避免一次性加载全量数据。
+ * <p>
+ * <b>与任何 ORM 无关</b>：流式数据源以 {@link Iterable} 表达，因此 MyBatis 的 {@code Cursor}、
+ * 自定义迭代器都可以直接接入（{@code Cursor} 本身即 {@code Iterable}）。
+ * 若数据源同时是 {@link AutoCloseable}（MyBatis {@code Cursor} 即是），框架会在消费结束后尽力关闭它。
  *
  * @author JYuan
  */
-public interface ExcelService<T> {
+public interface ExcelDataProvider<T> {
 
     /**
-     * 查询数据库数据并写入 Excel
+     * 查询数据并写入 Excel
      *
      * @param excelWriter excelWriter 写入器
-     * @param sheetName   WriteSheet 配置对象
+     * @param writeSheet  WriteSheet 配置对象
      * @param queryParam  查询参数
      */
-    void writeData(ExcelWriter excelWriter, WriteSheet sheetName, T queryParam);
+    void writeData(ExcelWriter excelWriter, WriteSheet writeSheet, T queryParam);
 
     /**
-     * 基于 MyBatis Cursor 的流式批处理导出默认实现
+     * 流式批处理导出默认实现
      */
     default <P, D> void writeData(ExcelWriter excelWriter,
-                                  WriteSheet sheetName,
-                                  Supplier<Cursor<P>> selectList,
+                                  WriteSheet writeSheet,
+                                  Supplier<? extends Iterable<P>> selectList,
                                   int batchSize,
                                   Consumer<List<P>> dataHandler,
                                   Function<List<P>, List<D>> dataConverter) {
-        writeData(excelWriter, sheetName, selectList, batchSize, dataHandler, dataConverter, null);
+        writeData(excelWriter, writeSheet, selectList, batchSize, dataHandler, dataConverter, null);
     }
 
     /**
-     * 基于 MyBatis Cursor 的流式批处理导出（带自定义主键去重提取器）
+     * 流式批处理导出（带自定义主键去重提取器）
      *
      * @param excelWriter   excelWriter
-     * @param sheetName     sheet 配置
-     * @param selectList    数据源 Supplier
+     * @param writeSheet    sheet 配置
+     * @param selectList    流式数据源 Supplier（如 {@code () -> mapper.getExportDataByCursor(param)}）
      * @param batchSize     批次刷盘大小
      * @param dataHandler   批次数据处理器（可选）
      * @param dataConverter 数据转换器（可选）
-     * @param idExtractor   主键提取器（如 User::getId，用于解决 MyBatis 一对多/嵌套集合映射时的去重隐患，可选）
+     * @param idExtractor   主键提取器（如 User::getId，用于解决一对多/嵌套集合映射时的去重隐患，可选）
      */
     default <P, D> void writeData(ExcelWriter excelWriter,
-                                  WriteSheet sheetName,
-                                  Supplier<Cursor<P>> selectList,
+                                  WriteSheet writeSheet,
+                                  Supplier<? extends Iterable<P>> selectList,
                                   int batchSize,
                                   Consumer<List<P>> dataHandler,
                                   Function<List<P>, List<D>> dataConverter,
                                   Function<P, Object> idExtractor) {
 
-        try (Cursor<P> cursor = selectList.get()) {
-            // 1. 兼容 Cursor 本身为空的情况
-            if (ObjectUtils.isEmpty(cursor)) {
-                excelWriter.write(Collections.emptyList(), sheetName);
+        Iterable<P> source = selectList.get();
+        try {
+            // 1. 兼容数据源本身为空的情况
+            if (source == null) {
+                excelWriter.write(Collections.emptyList(), writeSheet);
                 return;
             }
 
             List<P> buffer = new ArrayList<>(batchSize + 1);
             boolean hasWrittenRecords = false;
 
-            for (P current : cursor) {
+            for (P current : source) {
                 if (current == null) {
                     continue;
                 }
 
-                // 2. 避免重复追加同一记录（兼容 MyBatis 嵌套集合映射场景）
+                // 2. 避免重复追加同一记录（兼容一对多/嵌套集合映射场景）
                 if (buffer.isEmpty() || !isSameRecord(buffer.getLast(), current, idExtractor)) {
                     buffer.add(current);
                 }
@@ -84,7 +90,7 @@ public interface ExcelService<T> {
                 // 3. 延迟 1 条刷盘：当 buffer 达到 batchSize + 1 时，说明前 batchSize 条记录的嵌套集合已填充完毕
                 if (buffer.size() > batchSize) {
                     List<P> batchToFlush = new ArrayList<>(buffer.subList(0, batchSize));
-                    writeRecords(excelWriter, sheetName, batchToFlush, dataHandler, dataConverter);
+                    writeRecords(excelWriter, writeSheet, batchToFlush, dataHandler, dataConverter);
                     hasWrittenRecords = true;
 
                     // 保留未确定完全填充的最后一条记录
@@ -96,17 +102,17 @@ public interface ExcelService<T> {
 
             // 4. 清空末尾剩余的缓冲区数据
             if (!buffer.isEmpty()) {
-                writeRecords(excelWriter, sheetName, buffer, dataHandler, dataConverter);
+                writeRecords(excelWriter, writeSheet, buffer, dataHandler, dataConverter);
                 hasWrittenRecords = true;
             }
 
-            // 5. 整个 Cursor 没有任何有效数据时，写入空列表以生成表格 Header
+            // 5. 整个数据源没有任何有效数据时，写入空列表以生成表格 Header
             if (!hasWrittenRecords) {
-                excelWriter.write(Collections.emptyList(), sheetName);
+                excelWriter.write(Collections.emptyList(), writeSheet);
             }
 
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to read data from MyBatis Cursor", e);
+        } finally {
+            closeQuietly(source);
         }
     }
 
@@ -114,7 +120,7 @@ public interface ExcelService<T> {
      * 单批次数据写入处理
      */
     default <P, D> void writeRecords(ExcelWriter excelWriter,
-                                    WriteSheet sheetName,
+                                    WriteSheet writeSheet,
                                     List<P> records,
                                     Consumer<List<P>> dataHandler,
                                     Function<List<P>, List<D>> dataConverter) {
@@ -128,9 +134,23 @@ public interface ExcelService<T> {
 
         if (dataConverter != null) {
             List<D> convertedData = dataConverter.apply(records);
-            excelWriter.write(convertedData, sheetName);
+            excelWriter.write(convertedData, writeSheet);
         } else {
-            excelWriter.write(records, sheetName);
+            excelWriter.write(records, writeSheet);
+        }
+    }
+
+    /**
+     * 尽力关闭流式数据源（若其支持 {@link AutoCloseable}）。
+     * <p>关闭失败不覆盖主流程结果；底层资源（如 SqlSession）的生命周期最终由调用方保证。
+     */
+    private static void closeQuietly(Iterable<?> source) {
+        if (source instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception ignored) {
+                // 尽最大努力关闭；失败不影响已写入的导出结果
+            }
         }
     }
 
