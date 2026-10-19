@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import nl.basjes.parse.useragent.UserAgent;
 import nl.basjes.parse.useragent.UserAgentAnalyzer;
@@ -34,6 +35,7 @@ import static com.yzm.fireworks.common.constants.StringPool.*;
  * @author JYuan
  */
 @Slf4j
+@UtilityClass
 public class ClientInfoUtil {
 
     // ==================== 开关控制 ====================

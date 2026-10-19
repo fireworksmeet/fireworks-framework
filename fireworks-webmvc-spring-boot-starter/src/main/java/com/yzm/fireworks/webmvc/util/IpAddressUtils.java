@@ -2,6 +2,7 @@ package com.yzm.fireworks.webmvc.util;
 
 import com.google.common.net.InetAddresses;
 import com.yzm.fireworks.common.constants.StringPool;
+import lombok.experimental.UtilityClass;
 import org.springframework.util.StringUtils;
 
 import java.net.Inet4Address;
@@ -15,10 +16,8 @@ import java.net.InetAddress;
  *
  * @author JYuan
  */
-public final class IpAddressUtils {
-
-    private IpAddressUtils() {
-    }
+@UtilityClass
+public class IpAddressUtils {
 
     /**
      * 解析 IP 字面量，非法输入返回 {@code null}。
@@ -54,7 +53,8 @@ public final class IpAddressUtils {
         }
         byte[] bytes = address.getAddress();
         if (address instanceof Inet6Address && isMappedIpv4(bytes)) {
-            return (bytes[12] & 0xFF) + StringPool.DOT + (bytes[13] & 0xFF) + StringPool.DOT + (bytes[14] & 0xFF) + StringPool.DOT + (bytes[15] & 0xFF);
+            return (bytes[12] & 0xFF) + StringPool.DOT + (bytes[13] & 0xFF) + StringPool.DOT
+                    + (bytes[14] & 0xFF) + StringPool.DOT + (bytes[15] & 0xFF);
         }
         return InetAddresses.toAddrString(address);
     }

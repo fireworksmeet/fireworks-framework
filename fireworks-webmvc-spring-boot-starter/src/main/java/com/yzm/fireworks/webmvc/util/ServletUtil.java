@@ -3,6 +3,7 @@ package com.yzm.fireworks.webmvc.util;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.web.context.request.RequestAttributes;
@@ -15,11 +16,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * @author JYuan
  */
 @Slf4j
+@UtilityClass
 public class ServletUtil {
-
-    private ServletUtil() {
-        // 私有构造
-    }
 
     /**
      * 获取 request

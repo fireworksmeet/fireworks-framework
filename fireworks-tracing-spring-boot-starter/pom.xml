@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yzm.fireworks</groupId>
+        <artifactId>fireworks-spring-boot-parent</artifactId>
+        <version>${revision}</version>
+        <!-- ⚡️ 这个绝对不能少！指引 Maven 在本地物理目录向上找父 POM -->
+        <relativePath>../fireworks-spring-boot-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>fireworks-tracing-spring-boot-starter</artifactId>
+
+    <dependencies>
+        <!--
+            桥接层：让 Micrometer Tracing 真正可用（Servlet 入站 / 客户端出站 / 跨线程的自动埋点）。
+            只引桥接、不引 exporter：span 在进程内生成并写入 MDC，不上报、不落盘、不产生网络开销。
+            需要查看调用树（性能归因）时，由业务自行追加 opentelemetry-exporter-otlp。
+            版本由 spring-boot-dependencies 统一管理。
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <!--
+            Boot 的 Tracing / Observation 自动配置全部位于 actuator-autoconfigure，
+            缺了它 micrometer-tracing 不会装配出任何 Tracer（追踪等于没接），因此这里是必需依赖而非可选。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+    </dependencies>
+</project>
