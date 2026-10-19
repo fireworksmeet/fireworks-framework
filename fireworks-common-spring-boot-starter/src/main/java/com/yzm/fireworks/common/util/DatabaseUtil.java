@@ -2,6 +2,7 @@ package com.yzm.fireworks.common.util;
 
 import com.yzm.fireworks.common.constants.StringPool;
 import com.yzm.fireworks.common.enums.DatabaseType;
+import lombok.experimental.UtilityClass;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -16,13 +17,11 @@ import java.util.Locale;
  *
  * @author JYuan
  */
-public final class DatabaseUtil {
+@UtilityClass
+public class DatabaseUtil {
 
     private static final String PRODUCT_POSTGRES = "postgres";
     private static final String PRODUCT_MYSQL = "mysql";
-
-    private DatabaseUtil() {
-    }
 
     /**
      * 依据数据源识别数据库类型。

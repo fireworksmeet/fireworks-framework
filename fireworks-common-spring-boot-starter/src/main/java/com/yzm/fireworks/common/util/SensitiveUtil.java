@@ -1,5 +1,6 @@
 package com.yzm.fireworks.common.util;
 
+import lombok.experimental.UtilityClass;
 import org.springframework.util.StringUtils;
 
 /**
@@ -15,12 +16,10 @@ import org.springframework.util.StringUtils;
  *
  * @author JYuan
  */
-public final class SensitiveUtil {
+@UtilityClass
+public class SensitiveUtil {
 
     private static final char MASK_CHAR = '*';
-
-    private SensitiveUtil() {
-    }
 
     // ==================== 基础个人信息 ====================
 

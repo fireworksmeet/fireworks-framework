@@ -2,6 +2,7 @@ package com.yzm.fireworks.common.util;
 
 import com.yzm.fireworks.common.constants.RegexPool;
 import lombok.Getter;
+import lombok.experimental.UtilityClass;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
@@ -19,10 +20,8 @@ import java.util.regex.Pattern;
  *
  * @author JYuan
  */
-public final class ValidationUtil {
-
-    private ValidationUtil() {
-    }
+@UtilityClass
+public class ValidationUtil {
 
     // ==================== 正则常量（从 RegexPool 引用并编译） ====================
 

@@ -1,5 +1,6 @@
 package com.yzm.fireworks.id;
 
+import lombok.experimental.UtilityClass;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import org.springframework.util.Assert;
@@ -38,25 +39,26 @@ import java.util.stream.Collectors;
  * <b>失败语义</b>：一律 fail-fast 抛异常（应用尚未启动完成 / 标识未声明），
  * <b>不返回 {@code -1} 之类的哨兵值</b>——哨兵值会被静默写进订单号、会员号等业务数据，属于不可挽回的事故。
  * <p>
- * <b>为什么本类会被注册成一个 Bean</b>：静态 API 拿不到依赖注入，必须有个 Bean 在启动时把容器里的
- * {@link IdGeneratorProvider} 交过来——由 {@link IdAutoConfiguration} 创建本类实例完成，赋值就发生在这个
- * <b>构造器</b>里（不需要任何生命周期钩子）。此后每次取号只是一次引用读取 + 一次映射查找，不必反复查 Bean；
- * 容器重建（集成测试多上下文、DevTools 重启）时新容器会新建实例、重新绑定，不会残留旧上下文的对象。
+ * <b>为什么需要 {@link IdUtilBinder}</b>：静态 API 拿不到依赖注入，必须有个 Bean 在启动时把容器里的
+ * {@link IdGeneratorProvider} 交过来——{@link IdAutoConfiguration} 注册的 {@link IdUtilBinder} 只做这一件事，
+ * 绑定发生在它的构造器里（不需要任何生命周期钩子）。此后每次取号只是一次引用读取 + 一次映射查找，不必反复查 Bean；
+ * 容器重建（集成测试多上下文、DevTools 重启）时新容器会新建 binder、重新绑定，不会残留旧上下文的对象。
  * <p>
- * 因此本类的实例没有任何用途，<b>不要注入使用</b>——构造器包内可见，也不对外暴露。
+ * 本类是纯静态工具类：<b>私有构造器，不可实例化、也不要注入使用</b>。
  */
-public final class IdUtil {
+@UtilityClass
+public class IdUtil {
 
-    /** 由 {@link IdAutoConfiguration} 在创建实例时绑定，此后只读 */
+    /** 由 {@link IdUtilBinder} 在启动时绑定，此后只读 */
     private static volatile IdGeneratorProvider provider;
 
     /**
-     * 绑定 provider（包内可见，只由 {@link IdAutoConfiguration} 调用）。
+     * 绑定 provider（包内可见，只由 {@link IdUtilBinder} 调用）。
      * <p>
-     * 绑的是<b>引用</b>而不是快照：CosId 的生成器注册器（{@code XxxBeanRegistrar}）晚于本构造器执行也没关系——
+     * 绑的是<b>引用</b>而不是快照：CosId 的生成器注册器（{@code XxxBeanRegistrar}）晚于绑定执行也没关系——
      * 它们往 provider 里注册生成器之后，这里读到的就是同一份内容，所以无需等到「所有单例就绪」。
      */
-    IdUtil(IdGeneratorProvider idGeneratorProvider) {
+    static void bind(IdGeneratorProvider idGeneratorProvider) {
         provider = idGeneratorProvider;
     }
 
@@ -188,7 +190,7 @@ public final class IdUtil {
     private static IdGeneratorProvider requireProvider() {
         IdGeneratorProvider current = provider;
         Assert.state(current != null,
-                "IdUtil 尚未完成初始化：请在 Spring 应用启动完成之后调用（provider 由 IdAutoConfiguration 绑定）");
+                "IdUtil 尚未完成初始化：请在 Spring 应用启动完成之后调用（provider 由 IdUtilBinder 绑定）");
         return current;
     }
 

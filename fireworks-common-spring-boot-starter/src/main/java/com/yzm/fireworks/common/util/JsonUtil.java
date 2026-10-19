@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.experimental.UtilityClass;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -15,11 +16,8 @@ import java.util.Map;
  *
  * @author JYuan
  */
+@UtilityClass
 public class JsonUtil {
-
-    private JsonUtil() {
-        // 私有构造，防止实例化
-    }
 
     public static ObjectMapper getObjectMapper() {
         return SpringContextHolder.getBean(ObjectMapper.class);

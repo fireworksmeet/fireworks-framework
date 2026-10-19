@@ -1,6 +1,7 @@
 package com.yzm.fireworks.api.util;
 
 import com.yzm.fireworks.api.enums.CodeEnum;
+import lombok.experimental.UtilityClass;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -11,6 +12,7 @@ import java.util.function.Predicate;
  *
  * @author JYuan
  */
+@UtilityClass
 public class EnumUtil {
 
     /**

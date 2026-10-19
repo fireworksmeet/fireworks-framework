@@ -25,6 +25,10 @@ import static com.yzm.fireworks.common.constants.StringPool.SPACE;
  * JWT Token 工具类
  * <p>
  * 提供 JWT Token 的生成、解析和验证功能。
+ * <p>
+ * <b>不是纯工具类</b>：静态方法委托给自动配置注入的实例（签名器 / 校验器随配置构建），
+ * 因此不使用 {@code @UtilityClass}；新增无状态工具类请一律使用 {@code @UtilityClass}
+ * （见 {@code docs/conventions/java.md} §七）。
  *
  * @author JYuan
  */

@@ -26,7 +26,7 @@
 | 有序性 | 单实例单调；**全局仅趋势递增** | **时间有序**（单实例严格递增） |
 | 数据库往返 | 每 `step` 一次 | 无 |
 | 起始值可控 | ✅ `offset` 可精确衔接历史号 | ❌ 与历史号无衔接关系 |
-| 前置依赖 | 号段表（`script/db/cosid.sql`） | **机器号分发器** |
+| 前置依赖 | 号段表（`script/db/cosid.postgresql.sql`） | **机器号分发器** |
 | 典型用途 | 订单号 / 会员号 / 流水号等**业务编号** | 主键 / 链路 ID / 消息 ID 等**技术 ID** |
 
 > 两者**互斥**：同时开启会直接启动失败（见「模式互斥校验」）。两者生成的是**不同的号源**，
@@ -34,13 +34,17 @@
 
 ## 配置模板（复制即用）
 
-### 模板 1：号段模式（PostgreSQL，当前生产用法）
+### 模板 1：号段模式（PostgreSQL）
 
-建表：执行 `script/db/cosid.sql`（在**模块根目录**下，随源码交付、**不进 jar**）。
+建表：执行 `script/db/cosid.postgresql.sql`（在**模块根目录**下，随源码交付、**不进 jar**）。
+
+> MySQL 用户无需本脚本：CosId 内置的建表/初始化 SQL 就是 MySQL 方言，**显式**设置
+> `enable-auto-init-cosid-table: true` 即可自动建表，且无需覆盖任何 SQL。
+> ⚠️ 该开关**默认为 `false`**——不写不会建表，首次取号会因表不存在而报错。
 
 > ⚠️ **表名 `cosid` 沿用 CosId 上游默认值，不要改**：CosId 内置 SQL、后续版本与监控工具都可能假定该表名。
 
-> 脚本放在模块根的 `script/db/`：它只服务**人工部署**（本项目没有 Flyway/Liquibase，CosId 的自动建表也已显式关闭），
+> 脚本放在模块根的 `script/db/`：它只服务**人工部署**（本项目没有 Flyway/Liquibase；CosId 的自动建表开关默认就是关闭的，模板里再显式写成 `false`），
 > 没有程序化消费者——因此不放进 `src/main/resources`，避免把 DDL 混进代码资源目录、打进 jar、占用 classpath 命名空间。
 
 **关于 `cosid` 表的两个事实**：
@@ -66,13 +70,13 @@ cosid:
   namespace: ${spring.application.name}   # ⚠️ 必须稳定：改它等于换命名空间，号段会从 offset 重新开始（CosId 默认值是 cosid）
   segment:
     enabled: true                         # ★ 号段模式开关（与 cosid.snowflake.enabled 互斥）
-    mode: segment                         # 号段模式内部实现；量级上来后可切 chain（见下）
     distributor:
       type: jdbc
       jdbc:
-        # 建表交给 script/db/cosid.sql；CosId 内置 DDL 是 MySQL 方言
+        # 建表交给 script/db/cosid.postgresql.sql；CosId 内置 DDL 是 MySQL 方言。
+        # 该开关默认 false，这里显式写出，避免误以为「不写也会自动建表」
         enable-auto-init-cosid-table: false
-        # 号段行由 CosId 按 provider.<name>.offset 自动初始化（SQL 覆盖为 PG 版本）
+        # 号段行由 CosId 按 provider.<name>.offset 自动初始化（默认 true，显式写出便于阅读；SQL 需覆盖为 PG 版本）
         enable-auto-init-id-segment: true
         init-id-segment-sql: >-
           insert into cosid (name, last_max_id, last_fetch_time)
@@ -125,17 +129,26 @@ cosid:
 - **迁移场景**：`offset` 必须**大于**历史 `max_id`（宁可跳号，绝不重号）
 - **`step` 与抖动**：`step` 越大数据库往返越少，但多实例之间的乱序越明显（推荐 1000 ~ 10000）
 
-**可选：切换到号段链（SegmentChainId）**——号段耗尽时的取号抖动更小（预取安全距离），代价是 2 个后台线程：
+**号段链是默认实现**：`cosid.segment.mode` 默认就是 `chain`（SegmentChainId），**无需配置**。
+它在当前号段快用完时提前预取下一段，取号响应不受数据库往返影响；代价是多一组后台预取线程（`chain.prefetch-worker` 可调）。
+预取参数只在需要调优时才写（下面是示例值，不是必须项）：
 
 ```yaml
 cosid:
   segment:
-    mode: chain
     chain:
-      safe-distance: 5
+      safe-distance: 5                  # 触发预取的水位（示例值）
       prefetch-worker:
-        core-pool-size: 2
-        prefetch-period: 1s
+        core-pool-size: 2               # 预取线程数（示例值）
+        prefetch-period: 1s             # 预取周期（示例值）
+```
+
+如果更在意线程数、能接受号段耗尽瞬间的数据库往返抖动，可显式退回普通号段：
+
+```yaml
+cosid:
+  segment:
+    mode: segment
 ```
 
 ### 模板 2：雪花模式 + Redis 机器号（推荐）
@@ -285,11 +298,12 @@ String traceNo = IdUtil.getShareIdAsString();   // 字符串形态：默认 radi
 ```
 fireworks-id-spring-boot-starter/
 ├── pom.xml                                          # cosid-spring-boot-starter + cosid-jdbc
-├── script/db/cosid.sql                              # 号段模式建表脚本（雪花模式不需要；不进 jar）
+├── script/db/cosid.postgresql.sql                              # 号段模式建表脚本（雪花模式不需要；不进 jar）
 └── src/main/
     ├── java/com/yzm/fireworks/id/
-    │   ├── IdUtil.java                              # 唯一对外 API（fail-fast）
-    │   ├── IdAutoConfiguration.java                 # 把 IdGeneratorProvider 绑定给静态 API（唯一自动配置类）
+    │   ├── IdUtil.java                              # 唯一对外 API（纯静态、私有构造、fail-fast）
+    │   ├── IdUtilBinder.java                        # 启动期把 IdGeneratorProvider 交给静态 API（包内可见）
+    │   ├── IdAutoConfiguration.java                 # 注册 IdUtilBinder（唯一自动配置类）
     │   └── IdModeConflictEnvironmentPostProcessor.java  # 模式互斥校验
     └── resources/META-INF/
         ├── spring.factories                         # 注册上面那个 EnvironmentPostProcessor
@@ -298,9 +312,9 @@ fireworks-id-spring-boot-starter/
 
 本模块对启动期的参与只有两处、都很小：
 
-- **`IdAutoConfiguration`**：把 CosId 的 `IdGeneratorProvider` 绑定给静态 API `IdUtil`（静态类拿不到依赖注入），
-  绑定点就是 `IdUtil` Bean 的**构造器**——绑的是引用，所以不要求 CosId 的生成器注册器先执行完。
-  CosId 自身的配置仍全部由 CosId 的自动配置负责，本类不参与。
+- **`IdAutoConfiguration`**：注册一个 `IdUtilBinder`，由它的**构造器**把 CosId 的 `IdGeneratorProvider`
+  赋给静态 API `IdUtil`（静态类拿不到依赖注入，而工具类本身保持「纯静态、私有构造」）。
+  绑的是引用，所以不要求 CosId 的生成器注册器先执行完；CosId 自身的配置仍全部由 CosId 的自动配置负责。
 - **`IdModeConflictEnvironmentPostProcessor`**：模式互斥校验，只读不写。
 
 顺带：**本模块不依赖 `fireworks-common`**——静态 API 需要的 provider 由自己的自动配置绑定，不用 `SpringContextHolder`。

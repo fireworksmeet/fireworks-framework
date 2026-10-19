@@ -126,8 +126,10 @@ if (UserStatus.NORMAL.equals(user.getStatus())) {}       // 正确
 
 - 【禁止】把无法归类的代码都塞进 `Utils`。
 - 【推荐】`Utils` 必须是无状态、通用、稳定的纯工具。
+- 【强制】纯静态工具类必须不可实例化：统一使用 Lombok `@UtilityClass`（自动 `final` + 私有构造），禁止手写公开 / 隐式构造器，也禁止被 `new` 出来。
 - 【禁止】`Utils` 中直接注入 Service、Repository、`RedisTemplate` 等业务 / 基础设施 Bean。
 - 【推荐】有业务语义的方法放入 Service，而不是 `Utils`。
+- 【说明】确实需要依赖注入的静态 API，只能走「Bean 绑定」：由启动期 Bean 把依赖写入静态字段（如 `IdUtil` + `IdUtilBinder`），或静态门面持有实例（如 `RedisUtil`、`TokenUtil`）。这类类不是纯工具类，必须在类注释里说明为什么不能用 `@UtilityClass`。
 
 ---
 

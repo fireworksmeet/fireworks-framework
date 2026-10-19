@@ -1,5 +1,6 @@
 package com.yzm.fireworks.common.util;
 
+import lombok.experimental.UtilityClass;
 import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.Assert;
@@ -77,10 +78,8 @@ import java.util.concurrent.ThreadPoolExecutor;
  *
  * @author JYuan
  */
-public final class TaskExecutorUtil {
-
-    private TaskExecutorUtil() {
-    }
+@UtilityClass
+public class TaskExecutorUtil {
 
     /**
      * 构建线程池，沿用 Builder 的默认拒绝策略（{@link ThreadPoolExecutor.AbortPolicy}）。

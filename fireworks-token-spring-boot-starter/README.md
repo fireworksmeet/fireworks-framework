@@ -98,4 +98,4 @@ String token = TokenUtil.generateSecureToken(64);      // 自定义长度（如 
 
 - 项目依赖 `fireworks-common-spring-boot-starter`（`JsonUtil`、`Base64Util`、`StringUtil`）。
 - JWT 使用对称密钥（HS256）签名，`secret` 需妥善保管，不得泄露。
-- 若需实现登录认证拦截，可配合 `fireworks-web-spring-boot-starter` 或自定义 Filter 使用。
+- 若需实现登录认证拦截，可配合 `fireworks-webmvc-spring-boot-starter` 或自定义 Filter 使用。
