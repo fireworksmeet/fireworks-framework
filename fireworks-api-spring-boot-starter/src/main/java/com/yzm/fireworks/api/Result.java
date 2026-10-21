@@ -135,7 +135,7 @@ public class Result<T> {
     // ==================== 私有工具方法 ====================
 
     /**
-     * 获取应用名称，Spring 容器未就绪时返回 "unknown"，避免 NPE。
+     * 获取应用名称，Spring 容器未就绪时返回 "UNKNOWN"，避免 NPE。
      */
     private static String getApplicationName() {
         return SpringContextHolder.getProperty("spring.application.name", UNKNOWN);

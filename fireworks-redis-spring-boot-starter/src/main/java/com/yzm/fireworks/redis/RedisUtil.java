@@ -6,10 +6,13 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+
+import static com.yzm.fireworks.common.constants.StringPool.COLON;
 
 /**
  * Redis 静态工具类
@@ -30,6 +33,9 @@ import java.util.function.Consumer;
  *
  * <p>Spring 完成依赖注入后，{@code afterPropertiesSet()} 将实例赋给静态字段 {@code INSTANCE}，
  * 所有静态方法通过 {@code INSTANCE} 委托调用，保持静态调用体验，同时遵循 Spring 生命周期。
+ *
+ * <p><b>不是纯工具类</b>：本类持有实例状态（{@link RedisContext} 等），因此不使用 {@code @UtilityClass}。
+ * 新增无状态的工具类请一律使用 {@code @UtilityClass}（见 {@code docs/conventions/java.md} §七）。
  *
  * @author JYuan
  */
@@ -601,6 +607,22 @@ public class RedisUtil implements InitializingBean {
 
     public static <V> List<V> convertList(Collection<?> values, Class<V> returnType) {
         return instance().defaultContext.convertList(values, returnType);
+    }
+
+    // ==================== key 约定 ====================
+
+    /**
+     * 校验 Redis key 是否符合 {@code namespace:name} 约定（必须包含 {@code :}）。
+     * <p>
+     * 规则只在这里定义一次：{@link RedisContext} 在每次读写前校验；只接收 key、不直接操作 Redis 的
+     * 组件（如限流器）在构造请求时校验。无状态，不依赖 {@link #INSTANCE}。
+     *
+     * @param key Redis key
+     * @throws IllegalArgumentException key 为空白或不含 {@code :}
+     */
+    public static void checkKey(String key) {
+        Assert.isTrue(StringUtils.hasText(key) && key.contains(COLON),
+                "Redis key must contain '" + COLON + "', but was: " + key);
     }
 
     // ==================== 私有工具 ====================

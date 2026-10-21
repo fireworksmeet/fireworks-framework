@@ -215,9 +215,16 @@ void checkErrorCodes() {
 
 【强制】**业务失败一律返回 200，禁止把业务规则拒绝映射成 4xx**：4xx 在本框架中只表示"请求本身不合法"（参数、方法、媒体类型、路由），一旦业务错误也占用 4xx，监控将无法区分"用户操作失败"与"调用方请求有误"。
 
-【强制】服务间调用**不得把非 2xx 当作传输层异常抛出**：HTTP 客户端必须拦截非 2xx 并把响应体按 `Result` 反序列化返回。业务失败是 `200` + `code`，本可正常解析；但依赖侧的系统故障（4xx / 5xx）若被客户端库抛成传输层异常，`code` / `system` 就会丢失，调用方只能兜成笼统的 500，`getDataOrThrow()` / `propagate()` 的透传语义随之失效。
+【约定】服务间调用对**非 2xx 响应的处理策略由业务决定，框架不预设**：`loadBalancedRestClientBuilder` / `loadBalancedWebClientBuilder` 保持 Spring 标准行为，非 2xx 抛 `RestClientResponseException` / `WebClientResponseException`。
 
-【强制】因此**内部服务调用必须使用带负载均衡的 Builder**（`loadBalancedRestClientBuilder` / `loadBalancedWebClientBuilder`）——框架已在这两个 Builder 上关闭"非 2xx 抛异常"；第三方接口使用普通 Builder，保持"非 2xx 抛异常"的标准行为。
+【说明】这是"依赖故障如何呈现给自己的调用方"的取舍，取决于是否需要透传依赖的错误码与归属、是否需要按 4xx（限流、参数不合法）降级，属于业务失败模型的一部分；框架替业务关掉状态码异常，等于强制所有服务采纳同一种模型。
+
+【推荐】需要按 `Result` 解析非 2xx 的业务，注册 `RestClientCustomizer` / `WebClientCustomizer` 自行关闭状态码异常：
+
+- 收益：依赖的 `code` / `system` 可透传，`getDataOrThrow()` / `propagate()` 对依赖侧的系统故障同样生效；
+- 代价：必须兜底"非 2xx 且 body 为空"——`body()` 返回 `null`，建议按 HTTP 状态构造失败结果，不要把 `null` 交给调用方；同时 4xx 也不再抛异常，需要自行决定如何回给调用方。
+
+采用默认策略时，依赖的错误信息只落在日志（异常信息包含响应体原文），调用方拿到的是本服务的 5xx。
 
 ---
 

@@ -1,7 +1,9 @@
 package com.yzm.fireworks.oplog.config;
 
 import lombok.Data;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Role;
 
 /**
  * 操作日志配置项
@@ -16,6 +18,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author muzhantong
  */
 @ConfigurationProperties(prefix = "fireworks.oplog.record")
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 @Data
 public class LogRecordProperties {
 

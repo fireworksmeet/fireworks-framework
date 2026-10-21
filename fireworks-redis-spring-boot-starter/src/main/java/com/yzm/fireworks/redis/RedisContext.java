@@ -8,16 +8,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
-import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
-import static com.yzm.fireworks.common.constants.StringPool.COLON;
 
 
 /**
@@ -45,20 +41,20 @@ import static com.yzm.fireworks.common.constants.StringPool.COLON;
 public class RedisContext {
 
     /**
-     * Lua 脚本：原子性地执行 increment 和 expire，返回值为当前计数
+     * Lua 脚本：原子性地执行 INCR，并在首次自增时设置 TTL，返回当前计数。
+     * <p>
+     * 纯计数器语义：TTL 从第一次自增起计时，是固定窗口，不是滑动窗口，也不是限流器——
+     * 固定窗口在交界处会放行 2 倍流量。限流请使用 {@code RateLimiter}。
      */
-    private static final String RATE_LIMIT_SCRIPT =
+    private static final String COUNTER_WITH_TTL_SCRIPT =
             "local count = redis.call('INCR', KEYS[1]) " +
                     "if count == 1 then " +
                     "    redis.call('EXPIRE', KEYS[1], ARGV[1]) " +
                     "end " +
                     "return count";
 
-    private static final DefaultRedisScript<Long> RATE_LIMIT_REDIS_SCRIPT;
-
-    static {
-        RATE_LIMIT_REDIS_SCRIPT = new DefaultRedisScript<>(RATE_LIMIT_SCRIPT, Long.class);
-    }
+    private static final DefaultRedisScript<Long> COUNTER_WITH_TTL_REDIS_SCRIPT =
+            new DefaultRedisScript<>(COUNTER_WITH_TTL_SCRIPT, Long.class);
 
     private final JsonRedisTemplate jsonRedisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
@@ -183,9 +179,20 @@ public class RedisContext {
         return jsonRedisTemplate.opsForValue().increment(key);
     }
 
+    /**
+     * 自增计数，首次自增时设置过期时间，到期后计数归零。
+     * <p>
+     * 这是固定窗口计数器，不是限流：窗口起点是首次自增时刻，在窗口交界处可以放出 2 倍流量。
+     * 需要限流时使用 {@code RateLimiter}。
+     *
+     * @param key   计数 key
+     * @param time  TTL 长度
+     * @param unit  TTL 单位
+     * @return 自增后的计数
+     */
     public Long increment(String key, long time, TimeUnit unit) {
         checkKey(key);
-        return stringRedisTemplate.execute(RATE_LIMIT_REDIS_SCRIPT,
+        return stringRedisTemplate.execute(COUNTER_WITH_TTL_REDIS_SCRIPT,
                 Collections.singletonList(key), String.valueOf(unit.toSeconds(time)));
     }
 
@@ -475,7 +482,6 @@ public class RedisContext {
     // ==================== 私有工具 ====================
 
     private void checkKey(String key) {
-        Assert.isTrue(StringUtils.hasText(key) && key.contains(COLON),
-                key + " Must contain '" + COLON + "' ");
+        RedisUtil.checkKey(key);
     }
 }

@@ -48,7 +48,7 @@ fireworks-api-spring-boot-starter          ─┤ API 层（Result/分页/BizExc
 | `fireworks-redis` | Redis | 多数据源/`@DistributedLock`/`LockService`/JSON 序列化/JFR |
 | `fireworks-storage` | 对象存储 | 统一 S3 协议接入(MinIO/OSS/AWS S3/COS/OBS)/上传下载/URL 生成/直传凭证 |
 | `fireworks-export` | 导出 | EasyExcel 流式导出/对象存储落库/Cursor 批处理/合并单元格 |
-| `fireworks-msg` | 消息推送 | WebSocket/短信(阿里/腾讯)/邮件/去重/限流/记录 |
+| `fireworks-message` | 消息推送 | WebSocket/短信(阿里/腾讯)/邮件/去重/限流/记录 |
 | `fireworks-id` | ID 生成 | CosId 号段/雪花双模式（互斥）/`IdUtil` |
 | `fireworks-token` | Token | JWT 签发解析/安全随机 Token/Bearer 支持 |
 | `fireworks-security` | 安全认证 | Spring Security 集成/Header Token 认证/`@RequirePermission` 权限校验 |
@@ -120,7 +120,7 @@ fireworks-api-spring-boot-starter          ─┤ API 层（Result/分页/BizExc
 | fireworks-redis | [redis/README.md](fireworks-redis-spring-boot-starter/README.md) |
 | fireworks-storage | [storage/README.md](fireworks-storage-spring-boot-starter/README.md) |
 | fireworks-export | [export/README.md](fireworks-export-spring-boot-starter/README.md) |
-| fireworks-msg | [msg/README.md](fireworks-msg-spring-boot-starter/README.md) |
+| fireworks-message | [README.md](fireworks-message-spring-boot-starter/README.md) |
 | fireworks-id | [id/README.md](fireworks-id-spring-boot-starter/README.md) |
 | fireworks-token | [token/README.md](fireworks-token-spring-boot-starter/README.md) |
 | fireworks-rest-client | [rest-client/README.md](fireworks-rest-client-spring-boot-starter/README.md) |

@@ -21,7 +21,7 @@ public class Operator {
     /**
      * 操作人用户 ID（主键）
      * <p>
-     * 用于精确关联当前用户表，类型与项目 {@code BaseOperatorEntity#createdBy} 保持一致
+     * 用于精确关联当前用户表，类型与业务用户表主键保持一致
      */
     private Long operatorId;
 

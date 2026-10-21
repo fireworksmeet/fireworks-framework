@@ -1,41 +1,42 @@
 package com.yzm.fireworks.restclient.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yzm.fireworks.restclient.properties.RestClientProperties;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.client5.http.config.ConnectionConfig;
-import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.http.client.ClientHttpRequestFactoryBuilderCustomizer;
+import org.springframework.boot.autoconfigure.web.client.RestClientBuilderConfigurer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.web.client.RestClientCustomizer;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
+import org.springframework.boot.http.client.HttpComponentsClientHttpRequestFactoryBuilder;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
-import org.springframework.boot.autoconfigure.web.client.RestClientBuilderConfigurer;
 import org.springframework.context.annotation.Primary;
-import org.springframework.http.client.ClientHttpRequestFactory;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.context.annotation.Scope;
 import org.springframework.web.client.RestClient;
-import com.yzm.fireworks.restclient.properties.RestClientProperties;
+
+import java.time.Duration;
 
 /**
- * 生产级 RestClient 配置
+ * RestClient 连接池配置。
  *
- * <p>功能特性：
+ * <p>不接管 Boot 的 {@code RestClient.Builder} 与 {@code ClientHttpRequestFactory}，而是通过
+ * {@link ClientHttpRequestFactoryBuilderCustomizer} 在官方流水线里补齐 Spring Boot 故意不提供的池化参数：
+ * 容量、取连接等待上限、TTL、空闲回收、闲置校验。
+ *
+ * <p>职责划分：
  * <ul>
- *   <li>连接池管理（PoolingHttpClientConnectionManager）</li>
- *   <li>三级超时精细控制（connectTimeout / socketTimeout / connectionRequestTimeout）</li>
- *   <li>后台线程自动回收过期和空闲连接，防止僵尸连接</li>
+ *   <li>connect / read 超时、重定向、SSL：{@code spring.http.client.*}（Boot 负责，优先级最高）</li>
+ *   <li>连接池：{@code fireworks.rest-client.*}（本类负责）</li>
  * </ul>
+ *
+ * <p>已知取舍：连接池由 Boot 内部创建，本类拿不到 {@code PoolingHttpClientConnectionManager} 实例，
+ * 因此不注册池化指标（leased / available / pending）。若后续需要，应在
+ * {@code withConnectionManagerCustomizer} 之外另行持有 manager。
  *
  * @author JYuan
  */
@@ -45,129 +46,99 @@ import com.yzm.fireworks.restclient.properties.RestClientProperties;
 public class RestClientAutoConfiguration {
 
     public static final String LOAD_BALANCE_REST_CLIENT_BUILDER = "loadBalancedRestClientBuilder";
-    public static final String DEFAULT_REST_CLIENT_BUILDER = "restClientBuilder";
 
     /**
-     * 连接池管理器
+     * 仅在业务未配置 {@code spring.http.client.connect-timeout} 时兜底；
+     * 不配置时 HC5 默认是 3 分钟。
+     */
+    private static final Duration FALLBACK_CONNECT_TIMEOUT = Duration.ofSeconds(3);
+
+    /**
+     * 仅在业务未配置 {@code spring.http.client.read-timeout} 时兜底；不配置时等于不限制。
+     */
+    private static final Duration FALLBACK_READ_TIMEOUT = Duration.ofSeconds(10);
+
+    /**
+     * 在 Boot 构建 {@code ClientHttpRequestFactory} 的流水线里追加 HC5 池化参数。
      *
-     * <p>单独声明为 Bean 便于：
-     * <ol>
-     *   <li>注入 MeterRegistry 暴露连接池监控指标</li>
-     *   <li>后续扩展 SSL/TLS 自定义证书场景</li>
-     * </ol>
+     * <p>之所以用官方扩展点而不是自建 {@code CloseableHttpClient}：一旦替换 factory，
+     * {@code spring.http.client.*} 会整体失效且无任何提示。
      */
     @Bean
-    @ConditionalOnMissingBean(PoolingHttpClientConnectionManager.class)
-    public PoolingHttpClientConnectionManager poolingHttpClientConnectionManager(
-            RestClientProperties props) {
+    public ClientHttpRequestFactoryBuilderCustomizer<ClientHttpRequestFactoryBuilder<?>> fireworksHttpClientCustomizer(
+            RestClientProperties props, ClientHttpRequestFactorySettings settings) {
 
-        PoolingHttpClientConnectionManager connectionManager =
-                PoolingHttpClientConnectionManagerBuilder.create()
-                        .setDefaultConnectionConfig(
-                                ConnectionConfig.custom()
-                                        // TCP 三次握手超时
-                                        .setConnectTimeout(Timeout.ofMilliseconds(props.getConnectTimeout()))
-                                        // 连接建立后空闲保活时长
-                                        // 须小于服务端 keepAlive，防止服务端关闭后客户端持有僵尸连接
-                                        .setTimeToLive(TimeValue.ofMilliseconds(props.getKeepAlive()))
-                                        .build()
-                        )
-                        .setDefaultSocketConfig(
-                                SocketConfig.custom()
-                                        // Socket 读数据超时（等待服务端响应）
-                                        .setSoTimeout(Timeout.ofMilliseconds(props.getSocketTimeout()))
-                                        // 开启 TCP KeepAlive 探活，由 OS 层面检测断开的连接
-                                        .setSoKeepAlive(true)
-                                        .build()
-                        )
-                        // 连接池总容量
-                        .setMaxConnTotal(props.getMaxConnTotal())
-                        // 单个目标主机最大连接数（核心参数，防止被某个慢服务拖垮）
-                        .setMaxConnPerRoute(props.getMaxConnPerRoute())
-                        .build();
+        log.info("[RestClient] HttpClient5 池化 — maxConnTotal={}, maxConnPerRoute={}, "
+                        + "connectionRequestTimeout={}, timeToLive={}, maxIdleTime={}, validateAfterInactivity={}",
+                props.getMaxConnTotal(), props.getMaxConnPerRoute(), props.getConnectionRequestTimeout(),
+                props.getTimeToLive(), props.getMaxIdleTime(), props.getValidateAfterInactivity());
 
-        log.info("[RestClient] 连接池初始化完成 — maxConnTotal={}, maxConnPerRoute={}, " +
-                        "connectTimeout={}ms, socketTimeout={}ms, keepAlive={}ms",
-                props.getMaxConnTotal(), props.getMaxConnPerRoute(),
-                props.getConnectTimeout(), props.getSocketTimeout(), props.getKeepAlive());
-
-        return connectionManager;
+        return builder -> {
+            if (!(builder instanceof HttpComponentsClientHttpRequestFactoryBuilder http)) {
+                log.warn("[RestClient] 当前 factory 为 {}，fireworks.rest-client.* 仅对 HttpClient5 生效",
+                        builder.getClass().getName());
+                return builder;
+            }
+            http.withConnectionManagerCustomizer(manager -> manager
+                            .setMaxConnTotal(props.getMaxConnTotal())
+                            .setMaxConnPerRoute(props.getMaxConnPerRoute()))
+                    .withConnectionConfigCustomizer(connection -> connection
+                            // 连接超时属于 ConnectionConfig；factory.setConnectTimeout 自 6.2.13 起已废弃
+                            .setConnectTimeout(Timeout.ofMilliseconds(
+                                    (settings.connectTimeout() != null
+                                            ? settings.connectTimeout() : FALLBACK_CONNECT_TIMEOUT).toMillis()))
+                            .setTimeToLive(TimeValue.ofMilliseconds(props.getTimeToLive().toMillis()))
+                            .setValidateAfterInactivity(
+                                    TimeValue.ofMilliseconds(props.getValidateAfterInactivity().toMillis())))
+                    .withHttpClientCustomizer(client -> client
+                            .evictExpiredConnections()
+                            .evictIdleConnections(TimeValue.ofMilliseconds(props.getMaxIdleTime().toMillis())))
+                    .withCustomizer(factory -> {
+                        // 设在 factory 上才会进入每个请求的 RequestConfig；设在 client 默认值上会被 Spring 覆盖
+                        factory.setConnectionRequestTimeout(props.getConnectionRequestTimeout());
+                        if (settings.readTimeout() == null) {
+                            factory.setReadTimeout(FALLBACK_READ_TIMEOUT);
+                        }
+                    });
+            return http;
+        };
     }
 
     /**
-     * ClientHttpRequestFactory
+     * 普通（非负载均衡）Builder。
+     *
+     * <p>复用 Boot 的 {@link RestClientBuilderConfigurer}：由它按 {@code spring.http.client.*} 构建 factory，
+     * 再应用容器里所有 {@code RestClientCustomizer}。
+     *
+     * <p>声明为 {@link Primary} 与 {@code prototype} 仅为了消除与负载均衡 Builder 的注入歧义，
+     * 并保持 Builder 可变语义（单例 Builder 会被后来的 {@code baseUrl(...)} 污染）。
      */
     @Bean
-    @ConditionalOnMissingBean(CloseableHttpClient.class)
-    public CloseableHttpClient closeableHttpClient(
-            RestClientProperties props,
-            PoolingHttpClientConnectionManager connectionManager) {
-
-        RequestConfig requestConfig = RequestConfig.custom()
-                // 从连接池获取连接的等待超时，建议设短：快速失败优于长时间排队
-                // 若频繁报 ConnectionRequestTimeoutException，说明连接池容量不足
-                .setConnectionRequestTimeout(Timeout.ofMilliseconds(props.getConnectionRequestTimeout()))
-                .build();
-
-        return HttpClients.custom()
-                .setConnectionManager(connectionManager)
-                .setDefaultRequestConfig(requestConfig)
-                // 启用后台线程定期驱逐过期连接（配合 connectionManager 的 closeIdleConnections）
-                .evictExpiredConnections()
-                .evictIdleConnections(TimeValue.ofMilliseconds(props.getEvictIdleConnections()))
-                .build();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(ClientHttpRequestFactory.class)
-    public ClientHttpRequestFactory clientHttpRequestFactory(CloseableHttpClient httpClient) {
-        return new HttpComponentsClientHttpRequestFactory(httpClient);
+    @Primary
+    @Scope("prototype")
+    RestClient.Builder fireworksRestClientBuilder(RestClientBuilderConfigurer configurer) {
+        return configurer.configure(RestClient.builder());
     }
 
     /**
-     * 🟢 官方推荐：通过 RestClientCustomizer 全局定制 RestClient.Builder
-     * 这样不会干扰 Spring Cloud LoadBalancer 对 RestClient.Builder 的生命周期管理
-     */
-    @Bean
-    public RestClientCustomizer restClientCustomizer(
-            ClientHttpRequestFactory clientHttpRequestFactory,
-            ObjectMapper objectMapper) {
-        return builder -> builder
-                .requestFactory(clientHttpRequestFactory)
-                .messageConverters(converters -> {
-                    // 移除默认的 Jackson 转换器，添加使用容器中 ObjectMapper 的转换器
-                    converters.removeIf(c -> c instanceof MappingJackson2HttpMessageConverter);
-                    converters.add(new MappingJackson2HttpMessageConverter(objectMapper));
-                });
-    }
-
-    /**
-     * 2. 🟢 负载均衡 Builder（专用于内部微服务调用）
-     * 使用 @Qualifier("loadBalancedRestClientBuilder") 明确标识
+     * 负载均衡 Builder（专用于内部微服务调用）。
+     *
+     * <p>保持 Spring 的标准行为：非 2xx 抛 {@code RestClientResponseException}。是否关闭状态码异常、
+     * 改为从 {@code Result.code} 判定，由业务自行决定——取决于是否需要透传依赖的错误码与归属、
+     * 是否需要按 4xx（如限流、参数不合法）做降级，属于业务侧的失败模型取舍，框架不预设。
+     *
+     * <p>需要该行为的业务，注册自己的 {@code RestClientCustomizer} 即可（注意兜底「非 2xx 且 body 为空」
+     * 时 {@code body()} 返回 null 的情况）。
+     *
+     * <p>作用域为 {@code prototype}：Builder 是可变的，单例共享会让某个注入点的 {@code baseUrl(...)}
+     * 污染其他注入点。
      */
     @Bean
     @LoadBalanced
     @Qualifier(LOAD_BALANCE_REST_CLIENT_BUILDER)
+    @Scope("prototype")
     @ConditionalOnClass(name = "org.springframework.cloud.client.loadbalancer.LoadBalanced")
     public RestClient.Builder loadBalancedRestClientBuilder(RestClientBuilderConfigurer configurer) {
-        RestClient.Builder builder = RestClient.builder();
-        // 手动调用 configure 方法，确保包含TraceId（Micrometer Tracing）等官方默认能能力
-        configurer.configure(builder);
-        return builder;
+        return configurer.configure(RestClient.builder());
     }
-
-    /**
-     * 3. 🟢 普通/非负载均衡 Builder（专用于第三方接口或常规 HTTP 请求）
-     * 设为 @Primary，默认注入
-     */
-    @Bean
-    @Primary
-    @ConditionalOnMissingBean(name = DEFAULT_REST_CLIENT_BUILDER)
-    public RestClient.Builder restClientBuilder(RestClientBuilderConfigurer configurer) {
-        RestClient.Builder builder = RestClient.builder();
-        // 手动调用 configure 方法，确保包含TraceId（Micrometer Tracing）等官方默认能能力
-        configurer.configure(builder);
-        return builder;
-    }
-
 }

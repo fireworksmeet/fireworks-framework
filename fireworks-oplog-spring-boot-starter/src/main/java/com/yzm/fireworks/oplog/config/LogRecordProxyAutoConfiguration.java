@@ -25,6 +25,7 @@ import org.springframework.core.type.AnnotationMetadata;
  */
 @Configuration
 @EnableConfigurationProperties({LogRecordProperties.class})
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 @Slf4j
 public class LogRecordProxyAutoConfiguration implements ImportAware {
 

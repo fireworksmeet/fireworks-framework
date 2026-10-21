@@ -1,0 +1,17 @@
+{
+  "hints": [
+    {
+      "name": "fireworks.message.channels.sms.provider",
+      "values": [
+        {
+          "value": "ALIYUN",
+          "description": "阿里云短信"
+        },
+        {
+          "value": "TENCENT",
+          "description": "腾讯云短信"
+        }
+      ]
+    }
+  ]
+}

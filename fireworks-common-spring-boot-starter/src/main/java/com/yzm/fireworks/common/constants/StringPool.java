@@ -45,7 +45,6 @@ public class StringPool {
     public static final String HTTP_HOST_PREFIX = "http://";
     public static final String HTTPS_HOST_PREFIX = "https://";
     public static final String CODE = "code";
-    public static final String UNKNOWN = "unknown";
     public static final String LOCALHOST = "localhost";
     public static final String LOCALHOST_IPV4 = "127.0.0.1";
     public static final String LOCALHOST_IPV6 = "0:0:0:0:0:0:0:1";
@@ -54,4 +53,18 @@ public class StringPool {
      * 日志截断后缀
      */
     public static final String TRUNCATED_SUFFIX = "...[truncated]";
+
+    // ==================== 错误码 / 未知值 ====================
+
+    /**
+     * 未知：既用于数据缺失时的占位值（如无法识别的 UA 字段），也用于未归类的失败码。
+     * <p>
+     * 大小写统一为大写，与真实取值（如 {@code ios} / {@code web}）区分开，一眼可辨「不是有效值」。
+     */
+    public static final String UNKNOWN = "UNKNOWN";
+
+    /**
+     * 网络层失败：连接超时、IO 异常等，通常可重试。
+     */
+    public static final String NETWORK_ERROR = "NETWORK_ERROR";
 }

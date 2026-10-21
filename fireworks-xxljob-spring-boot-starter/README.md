@@ -6,7 +6,7 @@
 
 - **自动配置执行器**：引入依赖并开启开关后，自动装配 `XxlJobSpringExecutor`，无需手动初始化。
 - **IP 自动探测**：未显式配置执行器 IP 时，自动获取本机非回环地址。
-- **地址注册**：支持通过 `appName` 自动注册到调度中心，或通过 `address` 指定固定地址。
+- **地址注册**：`appName` 作为分组标识自动注册到调度中心；`address` 可覆盖注册上报的地址，为空则由 `ip:port` 自动生成。
 
 ## 快速开始
 
@@ -30,8 +30,8 @@ fireworks:
     admin:
       addresses: http://127.0.0.1:8080/xxl-job-admin   # 调度中心地址
     executor:
-      app-name: xxl-job-executor-sample   # 执行器 AppName，为空则不自动注册
-      address: ''                         # 固定执行器地址（选填，为空用 appName 自动注册）
+      app-name: xxl-job-executor-sample   # 执行器 AppName（必填，自动注册的分组标识）
+      address: ''                         # 固定执行器地址（选填，为空用 ip:port 自动生成）
       ip: ''                              # 执行器 IP，为空自动获取
       port: 9999                          # 执行器端口，<=0 则自动获取
       log-path: /data/applogs/xxl-job/jobhandler   # 日志路径，为空用默认
@@ -66,7 +66,8 @@ public class SampleXxlJob {
 | `fireworks.xxljob.enabled` | 总开关 | 未开启时整个自动配置不生效 |
 | `fireworks.xxljob.access-token` | 通信令牌 | 与调度中心一致 |
 | `fireworks.xxljob.admin.addresses` | 调度中心地址 | 必填 |
-| `fireworks.xxljob.executor.app-name` | 执行器名称 | 为空则关闭自动注册 |
+| `fireworks.xxljob.executor.app-name` | 执行器名称 | 必填，自动注册的分组标识 |
+| `fireworks.xxljob.executor.address` | 执行器注册地址 | 选填，为空用 `ip:port` 自动生成 |
 | `fireworks.xxljob.executor.ip` | 执行器 IP | 为空自动获取 |
 | `fireworks.xxljob.executor.port` | 执行器端口 | `<=0` 自动获取 |
 | `fireworks.xxljob.executor.log-path` | 日志路径 | 为空用默认 |

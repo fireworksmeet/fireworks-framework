@@ -1,1 +1,2 @@
 com.yzm.fireworks.redis.FireworksRedisAutoConfiguration
+com.yzm.fireworks.redis.ratelimit.RateLimitAutoConfiguration

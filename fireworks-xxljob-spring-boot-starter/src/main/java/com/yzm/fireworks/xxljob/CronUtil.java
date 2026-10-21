@@ -1,11 +1,14 @@
 package com.yzm.fireworks.xxljob;
  
+import lombok.experimental.UtilityClass;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
  * @author JYuan
  */
+@UtilityClass
 public class CronUtil {
     private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("ss mm HH dd MM ? yyyy");
  

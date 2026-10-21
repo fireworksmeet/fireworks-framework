@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
@@ -20,6 +21,11 @@ public class XxlJobAutoConfiguration {
 
     @Bean
     public XxlJobSpringExecutor xxlJobExecutor(InetUtils inetUtils, XxlJobProperties properties) {
+        Assert.hasText(properties.getAdmin().getAddresses(),
+                "fireworks.xxljob.admin.addresses 必须配置，否则无法与调度中心通信");
+        Assert.hasText(properties.getExecutor().getAppName(),
+                "fireworks.xxljob.executor.app-name 必须配置，否则无法自动注册到调度中心");
+
         log.info(">>>>>>>>>>> xxl-job config init");
         XxlJobSpringExecutor xxlJobSpringExecutor = new XxlJobSpringExecutor();
         xxlJobSpringExecutor.setAdminAddresses(properties.getAdmin().getAddresses());

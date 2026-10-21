@@ -103,7 +103,7 @@ public class IpLocationService implements DisposableBean {
     /**
      * 根据 IP 获取地理位置信息。
      * <p>
-     * 非 IP 字面量（空、{@code unknown}、hostname）直接返回 {@code unknown}，不会触发地址库查询。
+     * 非 IP 字面量（空、{@code UNKNOWN}、hostname）直接返回 {@code UNKNOWN}，不会触发地址库查询。
      */
     public LocationInfo getLocation(String ip) {
         String normalized = IpAddressUtils.normalize(ip);
@@ -127,7 +127,7 @@ public class IpLocationService implements DisposableBean {
      * <p>
      * <b>没有「区域」字段</b>：那是 v1/v2 时代 {@code ip2region.db} 的 5 段格式
      * （{@code 国家|区域|省份|城市|ISP}），3.x 的数据已重新组织，第 2 段就是省份。
-     * 第 5 段 ISO 国家码在部分数据中可能缺失，取不到时置为 {@code unknown}。
+     * 第 5 段 ISO 国家码在部分数据中可能缺失，取不到时置为 {@code UNKNOWN}。
      */
     private LocationInfo parseLocation(String info) {
         if (!StringUtils.hasText(info)) {
@@ -144,7 +144,7 @@ public class IpLocationService implements DisposableBean {
     }
 
     /**
-     * 第 5 段国家码；只接受两字母形式（大写），其余情况一律 {@code unknown}。
+     * 第 5 段国家码；只接受两字母形式（大写），其余情况一律 {@code UNKNOWN}。
      * <p>
      * 做形状校验是因为 xdb 允许自定义追加字段，若业务用的是裁剪 / 扩展过的库，
      * 第 5 段未必是 ISO 码，不能盲目当成国家码使用。
@@ -182,7 +182,7 @@ public class IpLocationService implements DisposableBean {
         private String city;         // 城市
         private String isp;          // 运营商
         /**
-         * ISO 3166-1 alpha-2 国家码（如 {@code CN} / {@code US}），数据缺失或格式不符时为 {@code unknown}。
+         * ISO 3166-1 alpha-2 国家码（如 {@code CN} / {@code US}），数据缺失或格式不符时为 {@code UNKNOWN}。
          * <p>
          * 该值取自 ip2region 数据第 5 段，做「两字母大写」形状校验后才返回；
          * 适合做语言 / 地区分流，<b>不适合作为合规或行政区划的唯一依据</b>。
