@@ -16,7 +16,7 @@ import org.springframework.util.Assert;
  *   <li>依赖 org.mindrot:jbcrypt，fireworks-common 已引入，无需额外依赖。</li>
  * </ul>
  *
- * <p>不要用此类做非密码场景的哈希，手机号/邮箱等查询型哈希请用 {@link HashUtil#hashWithSalt}。
+ * <p>不要用此类做非密码场景的哈希，手机号/邮箱等查询型哈希请用 {@link HashUtil#hmacSha256}。
  *
  * @author JYuan
  */

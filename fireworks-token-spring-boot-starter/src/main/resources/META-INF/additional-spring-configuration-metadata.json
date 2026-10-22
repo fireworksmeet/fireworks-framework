@@ -1,0 +1,77 @@
+{
+  "groups": [
+    {
+      "name": "fireworks.token.keys",
+      "type": "java.util.List<com.yzm.fireworks.token.autoconfigure.TokenProperties$Key>",
+      "sourceType": "com.yzm.fireworks.token.autoconfigure.TokenProperties",
+      "description": "密钥列表。每把密钥自带算法，因此同一部署可同时验签不同算法；签发只使用 signing=true 的那一把。"
+    }
+  ],
+  "properties": [
+    {
+      "name": "fireworks.token.keys[].kid",
+      "type": "java.lang.String",
+      "description": "密钥标识，写入 JWT header 的 kid；同一配置内必须唯一，轮换时用于区分新旧密钥。"
+    },
+    {
+      "name": "fireworks.token.keys[].algorithm",
+      "type": "com.yzm.fireworks.token.core.TokenAlgorithm",
+      "description": "该把密钥使用的算法，必须与密钥类型匹配：对称密钥用 HS256，RSA 用 RS256，EC P-256 用 ES256。"
+    },
+    {
+      "name": "fireworks.token.keys[].private-key-value",
+      "type": "java.lang.String",
+      "description": "PKCS#8 私钥 PEM 原文（以 -----BEGIN PRIVATE KEY----- 开头）；与 private-key-file 二选一。"
+    },
+    {
+      "name": "fireworks.token.keys[].private-key-file",
+      "type": "org.springframework.core.io.Resource",
+      "description": "私钥文件，内容必须是 PEM；路径语义由 Spring Resource 处理（file: 或绝对路径）。不允许 classpath。"
+    },
+    {
+      "name": "fireworks.token.keys[].public-key-value",
+      "type": "java.lang.String",
+      "description": "X.509 公钥 PEM 原文（以 -----BEGIN PUBLIC KEY----- 开头）；与 public-key-file 二选一。"
+    },
+    {
+      "name": "fireworks.token.keys[].public-key-file",
+      "type": "org.springframework.core.io.Resource",
+      "description": "公钥文件，内容必须是 PEM；与 public-key-value 二选一。"
+    },
+    {
+      "name": "fireworks.token.keys[].secret-value",
+      "type": "java.lang.String",
+      "description": "对称密钥原文；HMAC 要求至少 32 字节。与 secret-file 二选一。"
+    },
+    {
+      "name": "fireworks.token.keys[].secret-file",
+      "type": "org.springframework.core.io.Resource",
+      "description": "对称密钥文件，按原始字节读取并去掉首尾空白；与 secret-value 二选一。"
+    },
+    {
+      "name": "fireworks.token.keys[].signing",
+      "type": "java.lang.Boolean",
+      "description": "是否为当前签发密钥。全局最多一把；多把为 true 时启动失败。",
+      "defaultValue": false
+    }
+  ],
+  "hints": [
+    {
+      "name": "fireworks.token.keys[].algorithm",
+      "values": [
+        {
+          "value": "HS256",
+          "description": "HMAC-SHA256，对称密钥。最简单，但验签方同时具备签发能力，仅适合单信任域与联调。"
+        },
+        {
+          "value": "RS256",
+          "description": "RSASSA-PKCS1-v1_5 + SHA-256，RSA 公私钥。兼容性最好，任何网关与语言的 JWT 库都支持。"
+        },
+        {
+          "value": "ES256",
+          "description": "ECDSA P-256 + SHA-256，EC 公私钥。签名只有 64 字节（RS256 为 256 字节），推荐默认。"
+        }
+      ]
+    }
+  ]
+}

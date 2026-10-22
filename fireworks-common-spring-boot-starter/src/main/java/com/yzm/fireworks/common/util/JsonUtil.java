@@ -35,7 +35,8 @@ public class JsonUtil {
         try {
             return getObjectMapper().writeValueAsString(value);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("JSON stringify error for object: " + value, e);
+            // 不拼接对象内容：toString 可能带敏感字段，异常消息会进日志
+            throw new IllegalArgumentException("JSON stringify error, type=" + value.getClass().getName(), e);
         }
     }
 
@@ -49,7 +50,7 @@ public class JsonUtil {
         try {
             return getObjectMapper().writeValueAsBytes(value);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("JSON serialize error for object: " + value, e);
+            throw new IllegalArgumentException("JSON serialize error, type=" + value.getClass().getName(), e);
         }
     }
 
@@ -65,7 +66,8 @@ public class JsonUtil {
         try {
             return getObjectMapper().readValue(json, clazz);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("JSON deserialize error: " + json, e);
+            // 不拼接原始报文：内容可能来自外部输入，进异常消息会连带 PII 进日志
+            throw new IllegalArgumentException("JSON deserialize error: " + e.getOriginalMessage(), e);
         }
     }
 
@@ -79,7 +81,7 @@ public class JsonUtil {
         try {
             return getObjectMapper().readValue(json, typeReference);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("JSON deserialize error: " + json, e);
+            throw new IllegalArgumentException("JSON deserialize error: " + e.getOriginalMessage(), e);
         }
     }
 
@@ -135,7 +137,7 @@ public class JsonUtil {
         try {
             return objectMapper.readValue(json, javaType);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("JSON to Map error: " + json, e);
+            throw new IllegalArgumentException("JSON to Map error: " + e.getOriginalMessage(), e);
         }
     }
 
@@ -151,7 +153,7 @@ public class JsonUtil {
         try {
             return objectMapper.readValue(json, javaType);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("JSON to List error: " + json, e);
+            throw new IllegalArgumentException("JSON to List error: " + e.getOriginalMessage(), e);
         }
     }
 

@@ -44,7 +44,7 @@
 | XXL-JOB | 3.3.1 |
 | Redisson | 3.52.0 |
 | PowerJob | 5.1.2 |
-| Nimbus JOSE JWT | 9.31 |
+| Nimbus JOSE JWT | 10.9.1 |
 | Lombok | 1.18.46 |
 | MapStruct | 1.6.3 |
 

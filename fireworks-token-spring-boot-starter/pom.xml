@@ -14,18 +14,35 @@
     <artifactId>fireworks-token-spring-boot-starter</artifactId>
 
     <dependencies>
+        <!-- Base64 / 哈希等通用工具；避免在框架内维护第二份实现 -->
         <dependency>
             <groupId>com.yzm.fireworks</groupId>
             <artifactId>fireworks-common-spring-boot-starter</artifactId>
         </dependency>
+        <!-- JOSE/JWT 的唯一实现依赖；所有 Nimbus 类型收敛在 core.jwt 包内，不进公开契约 -->
         <dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>
         </dependency>
         <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <!-- 启动日志与自检提示；日志门面由使用方提供实现 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <!-- 空安全注解：只用于声明契约（如 record 覆写 Object 方法），编译期可见、不传递 -->
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <!-- PEM 解析：PEMParser / JcaPEMKeyConverter 在 bcpkix，bcprov 只有 ASN.1 编解码 -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
         </dependency>
     </dependencies>
 </project>

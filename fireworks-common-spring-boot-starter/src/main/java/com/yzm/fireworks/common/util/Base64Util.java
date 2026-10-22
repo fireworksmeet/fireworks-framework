@@ -19,6 +19,7 @@ public class Base64Util {
 
     private static final Base64.Encoder BASIC_ENCODER = Base64.getEncoder();
     private static final Base64.Decoder BASIC_DECODER = Base64.getDecoder();
+    private static final Base64.Decoder MIME_DECODER = Base64.getMimeDecoder();
 
     private static final Base64.Encoder URL_ENCODER_NO_PADDING = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder URL_DECODER = Base64.getUrlDecoder();
@@ -51,6 +52,20 @@ public class Base64Util {
             return null;
         }
         return new String(decodeToBytes(src), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * MIME Base64 解码：忽略换行与其它非字母表字符，用于 PEM 正文、折行的 JSON 等。
+     *
+     * <p>与 {@link #decodeToBytes(String)} 的区别：后者是严格解码，遇到换行直接抛异常。
+     * 这里非法输入仍然抛 {@link IllegalArgumentException}，不返回空数组——把"解不出来"伪装成
+     * "空内容"会让上层报一个离现场很远的错。
+     */
+    public static byte[] decodeMime(String src) {
+        if (src == null) {
+            return new byte[0];
+        }
+        return MIME_DECODER.decode(src.getBytes(StandardCharsets.UTF_8));
     }
 
     // ── URL Safe Base64 (常用在 URL 参数、游标 Cursor、Cookie) ───────────────

@@ -50,7 +50,7 @@ fireworks-api-spring-boot-starter          ─┤ API 层（Result/分页/BizExc
 | `fireworks-export` | 导出 | EasyExcel 流式导出/对象存储落库/Cursor 批处理/合并单元格 |
 | `fireworks-message` | 消息推送 | WebSocket/短信(阿里/腾讯)/邮件/去重/限流/记录 |
 | `fireworks-id` | ID 生成 | CosId 号段/雪花双模式（互斥）/`IdUtil` |
-| `fireworks-token` | Token | JWT 签发解析/安全随机 Token/Bearer 支持 |
+| `fireworks-token` | Token | JWT 签发/校验（多密钥 `kid` 轮换、签发唯一/验签全量、失败分类）、不透明令牌原语；零 Web 依赖 |
 | `fireworks-security` | 安全认证 | Spring Security 集成/Header Token 认证/`@RequirePermission` 权限校验 |
 | `fireworks-rest-client` | HTTP 客户端 | RestClient 连接池/超时/负载均衡/接口代理 |
 | `fireworks-webflux-client` | 响应式客户端 | WebClient 连接池/超时/负载均衡/接口代理 |
@@ -72,7 +72,7 @@ fireworks-api-spring-boot-starter          ─┤ API 层（Result/分页/BizExc
 | 存储 | AWS S3 SDK v2（S3 协议，兼容 MinIO / OSS / COS / OBS） |
 | 导出 | EasyExcel 4.0.3 |
 | 定时任务 | XXL-JOB 3.3.1 |
-| 认证 | Nimbus JOSE JWT 9.31 |
+| 认证 | Nimbus JOSE JWT 10.9.1 |
 | 辅助 | Lombok、MapStruct |
 
 ## 快速开始

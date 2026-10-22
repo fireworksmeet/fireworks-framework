@@ -67,6 +67,7 @@ public enum UserStatus implements CodeEnum<Integer> {
 - 【禁止】Entity / DO 无脑使用 `@Data`——`equals` / `hashCode` / `toString` 会带来隐藏问题（集合去重、日志打印泄露字段、懒加载触发查询）。
 - 【推荐】Service 使用 `@RequiredArgsConstructor`（与构造器注入一致，见 `spring-boot.md`）。
 - 【禁止】在有明确**不可变语义**的对象上使用 `@Setter`。
+- 【说明】访问器命名按类型用途区分：**不可变值对象**（`record` 以及配套的手写类）用 record 风格 `value()`；需要被框架按 JavaBean 约定反射的类型（`@ConfigurationProperties`、Jackson 反序列化的 Request DTO、EL 表达式取值）用 `getValue()`。判断标准是"有没有框架靠 `getX`/`setX` 找属性"，不是个人偏好。
 
 ---
 
@@ -126,10 +127,18 @@ if (UserStatus.NORMAL.equals(user.getStatus())) {}       // 正确
 
 - 【禁止】把无法归类的代码都塞进 `Utils`。
 - 【推荐】`Utils` 必须是无状态、通用、稳定的纯工具。
+- 【强制】静态工具类命名统一为 **`XxxUtil`**（单数 `Util`，不用 `XxxUtils`），且按领域命名（`JsonUtil`、`PemUtil`、`TokenDigestUtil`）；禁止 `CommonUtil`、`MiscUtil` 这类泛化名。
+- 【禁止】用复数名词（`Strings`、`Lists`、`Files`、`Paths`、`Keys`）命名工具类：这类名字既与 JDK / Guava 的现有类型冲突，也看不出"这是一组静态方法"。
+- 【说明】上一条只约束**静态工具类**。以下两种复数命名是正确的，不要改：① 承载多个值的值对象（`TokenClaims` 对应 RFC 7519 的 Claims Set、`HttpHeaders`、`ConfiguredKeys`）；② Spring Boot 约定俗成的配置类（`TokenProperties`、`ServerProperties`）。判断标准是"这个类型本身是不是一组值"，而不是"名字有没有 s"。
+- 【强制】`Condition` 实现按 `OnXxxCondition` 命名，一个类只判断一件事；不要用 `XxxConditions` 做命名空间容器再嵌套 `OnSigningKey` 这类半截名字（与 Spring Boot 的 `OnClassCondition` / `OnBeanCondition` 保持一致）。
 - 【强制】纯静态工具类必须不可实例化：统一使用 Lombok `@UtilityClass`（自动 `final` + 私有构造），禁止手写公开 / 隐式构造器，也禁止被 `new` 出来。
+- 【说明】只产出一种对象、含逻辑分支的静态工厂不算工具类，按用途命名（如 `SignerFactory`），不要叫 `SignerUtil`。
+- 【说明】starter 是否依赖 `common` 取决于"是否真的用到"，不做统一要求：`security`、`storage`、`message` 等用到了就引，`id`、`rest-client`、`webflux-client`、`tracing` 没用到就不引。既不要为了"零依赖"把现成工具重写一遍，也不要为了"统一"引入没使用的依赖。
+- 【说明】但**安全与解析类代码不得依赖会被业务全局配置改变的行为**：典型是全局 `ObjectMapper`（`JsonUtil`）——同一段解析在不同业务工程里结果不同，这属于不可接受的隐式耦合。这类代码用 JDK 或底层库自带的解析器；纯函数工具（Base64、String）可以直接复用 `common`。
 - 【禁止】`Utils` 中直接注入 Service、Repository、`RedisTemplate` 等业务 / 基础设施 Bean。
 - 【推荐】有业务语义的方法放入 Service，而不是 `Utils`。
-- 【说明】确实需要依赖注入的静态 API，只能走「Bean 绑定」：由启动期 Bean 把依赖写入静态字段（如 `IdUtil` + `IdUtilBinder`），或静态门面持有实例（如 `RedisUtil`、`TokenUtil`）。这类类不是纯工具类，必须在类注释里说明为什么不能用 `@UtilityClass`。
+- 【说明】确实需要依赖注入的静态 API，只能走「Bean 绑定」：由启动期 Bean 把依赖写入静态字段（如 `IdUtil` + `IdUtilBinder`），或静态门面持有实例（如 `RedisUtil`）。这类类不是纯工具类，必须在类注释里说明为什么不能用 `@UtilityClass`。
+- 【说明】需要按配置构造的能力（如 JWT 签发/验签）一律做成普通 Bean + 构造器注入，不要再新增"静态方法 + 实例方法混合"的门面。
 
 ---
 
