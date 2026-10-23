@@ -5,7 +5,7 @@
 
 以一组开箱即用的 `*-spring-boot-starter` 模块，为业务工程提供统一响应、Web 增强、Redis、消息推送、可靠消息（Outbox）、存储、导出、Token 认证等能力，屏蔽第三方中间件的接入与配置细节。
 
-框架**不绑定 ORM 与数据库**：内部持久化只用 Spring JDBC，内置数据库方言支持 **PostgreSQL 12+ / MySQL 8**。
+框架**不绑定 ORM 与数据库**：内部持久化只用 Spring JDBC，内置 SQL 与建表脚本支持 **PostgreSQL 12+ / MySQL 8**。
 业务侧的 ORM（MyBatis / MyBatis-Plus / JPA / jOOQ / 手写 SQL）与数据库选择均不受框架约束；
 习惯 MyBatis-Plus 的服务，可按需引入可选的 `fireworks-mybatis-plus` 粘合层（分页拦截器自动装配 + 审计字段填充）。
 

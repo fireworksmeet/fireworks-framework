@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yzm.fireworks</groupId>
+        <artifactId>fireworks-spring-boot-parent</artifactId>
+        <version>${revision}</version>
+        <!-- ⚡️ 这个绝对不能少！指引 Maven 在本地物理目录向上找父 POM -->
+        <relativePath>../fireworks-spring-boot-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>fireworks-mybatis-plus-spring-boot-starter</artifactId>
+
+    <dependencies>
+        <!-- 统一响应：PageResponse / PageWithFooterResponse 的分页适配 -->
+        <dependency>
+            <groupId>com.yzm.fireworks</groupId>
+            <artifactId>fireworks-api-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yzm.fireworks</groupId>
+            <artifactId>fireworks-common-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- MyBatis-Plus 官方 starter（本模块是它的「粘合层」，不是再包装） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <!--
+            MyBatis-Plus 自 3.5.9 起把 PaginationInnerInterceptor 等「依赖 SQL 解析」的插件
+            拆到独立模块，官方 starter 不再传递引入——这正是“配了分页却不生效”的常见原因。
+            本模块直接带上，业务无需再关心。
+        -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
+
+        <!--
+            SQL 日志：社区整合包（自动包装数据源，不改 JDBC URL、不换驱动）。
+            设为 optional：不传递给业务，不引入就没有任何代理与运行时开销。
+            启用：业务工程自行声明本依赖；它默认 enable-logging=true，即引入即打印；
+            关闭：decorator.datasource.p6spy.enable-logging=false，或 decorator.datasource.enabled=false 关闭全部装饰器。
+        -->
+        <dependency>
+            <groupId>com.github.gavlyukovskiy</groupId>
+            <artifactId>p6spy-spring-boot-starter</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+</project>

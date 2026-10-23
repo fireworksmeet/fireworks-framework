@@ -45,6 +45,15 @@ public class BizException extends RuntimeException {
         this.status = status;
     }
 
+    /**
+     * 保留底层异常：{@link #fillInStackTrace()} 只影响本异常的栈，cause 自己的栈仍然完整，
+     * 排障时能看到真正失败的位置（如唯一键冲突的 SQL）。
+     */
+    public BizException(ExceptionStatus status, Throwable cause) {
+        super(status.getMessage(), cause);
+        this.status = status;
+    }
+
 
     /**
      * 不打印堆栈，提高性能

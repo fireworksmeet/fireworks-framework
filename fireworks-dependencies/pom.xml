@@ -48,7 +48,8 @@
         <ip2region.version>3.3.4</ip2region.version>
         <jbcrypt.version>0.4</jbcrypt.version>
         <aj-captcha.version>1.4.0</aj-captcha.version>
-        <p6spy.version>3.9.1</p6spy.version>
+        <!-- 固定在 Boot 3 世代线：2.x 面向 Spring Boot 4，会传递 spring-boot-jdbc:4.x 导致自动配置类重名 -->
+        <p6spy-spring-boot-starter.version>1.12.1</p6spy-spring-boot-starter.version>
         <latencyutils.version>2.0.3</latencyutils.version>
         <powerjob.version>5.1.2</powerjob.version>
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
@@ -78,10 +79,11 @@
                 <artifactId>LatencyUtils</artifactId>
                 <version>${latencyutils.version}</version>
             </dependency>
+            <!-- p6spy 内核版本由 starter 自己管理，这里不再重复声明 -->
             <dependency>
-                <groupId>p6spy</groupId>
-                <artifactId>p6spy</artifactId>
-                <version>${p6spy.version}</version>
+                <groupId>com.github.gavlyukovskiy</groupId>
+                <artifactId>p6spy-spring-boot-starter</artifactId>
+                <version>${p6spy-spring-boot-starter.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>

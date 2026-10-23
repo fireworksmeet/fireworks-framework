@@ -41,12 +41,14 @@
 - 【强制】**禁止**使用 `@TableLogic` 自动逻辑删除：其 0/1 语义与 `deleted_at`（`NULL` / 时间戳）不兼容，且隐式注入的条件在评审中不可见（见 `../decisions/0003-soft-delete-and-unique-constraint.md`）。
 - 【说明】`updateById(entity)` 的字段策略为 `NOT_NULL`：只更新实体中**非 null 字段**，并非全量更新。代价是更新列由"字段是否为 null"隐式决定，且**无法把字段置为 null**。
 - 【推荐】更新列需要显式控制（指定更新列、置 null、复杂条件）时，使用条件构造器（`LambdaUpdateWrapper` / `update(entity, wrapper)`）。
-- 【说明】引入 `fireworks-mybatis-plus-spring-boot-starter` 后，**分页拦截器与审计字段自动填充已由框架装配**；此时**禁止**再自行声明分页拦截器或 `MetaObjectHandler`（会覆盖框架实现）。
+- 【说明】引入 `fireworks-mybatis-plus-spring-boot-starter` 后，**分页拦截器与审计字段自动填充已由框架装配**，默认不要再声明 `MybatisPlusInterceptor` 或 `MetaObjectHandler`；要追加插件走 `MybatisPlusCustomizer`。
+- 【说明】声明自己的 `MybatisPlusInterceptor` 时框架会**让位**（`@ConditionalOnMissingBean`），不是"覆盖"——这是自动识别方言失效（如手工 `jdbc:p6spy:` 前缀）时的逃生口；此时必须自己装配 `PaginationInnerInterceptor` 并设置 `max-limit`。
+- 【说明】`MetaObjectHandler` 同理：自行声明后框架实现不再注册，审计字段的填充规则全部由你负责。
 
 ---
 
 # 四、分页结果的转换
 
 - 【强制】不要把 ORM 的分页对象直接作为接口响应返回。
-- 【推荐】引入 `fireworks-mybatis-plus-spring-boot-starter` 时，用 `PageAdapters.from(IPage[, mapper])` 转成框架统一分页响应。
-- 【说明】使用其他 ORM 时直接调用 `PageResponse.ofOffset(records, current, size, total[, mapper])`（契约见 `api.md` §6.2）。
+- 【推荐】引入 `fireworks-mybatis-plus-spring-boot-starter` 时，用 `PageAdapters.offset(IPage[, mapper])` 转成框架统一分页响应；游标分页固定两步：`PageAdapters.cursorPage(size)` 构造分页参数（内部查询 `size + 1` 条并关闭 count），再用 `PageAdapters.cursor(IPage, nextCursorFunction[, mapper])` 转换。
+- 【说明】使用其他 ORM 时直接调用 `PageResponse.ofOffset(records, current, size, total[, mapper])` 或 `PageResponse.ofCursor(...)`（契约见 `api.md` §6.2）。
