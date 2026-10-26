@@ -40,7 +40,7 @@ accessor。当前 classpath 上唯一自动注册的 accessor 是 `ObservationTh
 注册后由 Boot 的 `ThreadPoolTaskExecutorBuilder` 自动应用到容器中**唯一**的 `TaskDecorator`：
 
 - `@Async` 的默认线程池 `applicationTaskExecutor` 自动继承上下文；
-- 业务自建线程池走 `TaskExecutorUtil`，同样自动带上该装饰器；
+- 业务自建线程池用 `ThreadPoolTaskExecutorBuilder` 声明为 Bean，同样自动带上该装饰器；
 - 容器中出现两个 `TaskDecorator` 会直接抛 `NoUniqueBeanDefinitionException`。业务若要自定义装饰器，
   自定义 Bean 会覆盖本模块的（`@ConditionalOnMissingBean`），此时需要自行 `delegate` 给
   `ContextPropagatingTaskDecorator`，否则链路会在异步边界断裂。

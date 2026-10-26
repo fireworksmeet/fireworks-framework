@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- **工具类**：`JsonUtil`、`SpringContextHolder`、`HashUtil`、`PasswordUtil`、`StringUtil`、`SpelUtil`、`Base64Util`、`DateUtil`、`InstantUtil`、`ZoneUtil`、`TaskExecutorUtil`、`ValidationUtil`。
+- **工具类**：`JsonUtil`、`SpringContextHolder`、`HashUtil`、`PasswordUtil`、`StringUtil`、`SpelUtil`、`Base64Util`、`DateUtil`、`InstantUtil`、`ZoneUtil`、`ThreadPoolUtil`、`ValidationUtil`。
 - **加密算法**：AES-GCM、RSA、国密 SM2 / SM4（`util/crypto` 包）。
 - **数据脱敏**：字段级 `@Sensitive` + Jackson `SensitiveModule` 自动脱敏；算法集中在 `SensitiveUtil`，非序列化场景（日志、导出）可直接调用。
 - **Jackson 全局配置**：统一时间格式、BigDecimal 字符串化、未知字段忽略、脱敏模块等。
@@ -104,30 +104,41 @@ boolean ok = PasswordUtil.matches("rawPassword", hash); // 校验
 
 ### 7. 线程池与上下文传递
 
-`TaskExecutorUtil` 不自定义参数模型，直接复用 Spring 官方的 `ThreadPoolTaskExecutorBuilder`。
-Builder 从容器注入：它是 Boot 依据 `spring.task.execution.*`、容器中的 `ThreadPoolTaskExecutorCustomizer`
-以及容器中唯一的 `TaskDecorator` 预先配置好的 Bean，因此异步线程可继承提交线程的上下文。
-该 `TaskDecorator` 由 `fireworks-tracing` 注册为 `ContextPropagatingTaskDecorator`（本模块不做上下文传播，
-业务未引入 tracing 时线程池照常可用，只是没有可传播的上下文）：
+`ThreadPoolUtil` **只服务框架内部**（outbox 分道、轮询调度器），两个入口：
+
+```java
+ThreadPoolUtil.executor(prefix, coreSize, maxSize, queueCapacity, awaitTermination, rejectedHandler, taskDecorator);
+ThreadPoolUtil.scheduler(prefix, awaitTermination);
+```
+
+内部池**不读取** `spring.task.execution.*` / `spring.task.scheduling.*`：线程数、队列、拒绝策略由框架自己决定，
+不应被业务全局配置改变（业务调大默认池、或开启虚拟线程，框架的轮询池不该跟着变）。
+它们也不复用 Boot 的 `ThreadPoolTaskExecutorBuilder`——那是单例且方法可变，产多个池会污染字段。
+
+**业务需要自己的线程池时，按 Boot 官方写法声明 Bean 即可**，Spring 负责 `initialize()` / `destroy()`，
+并自动应用容器中唯一的 `TaskDecorator`（由 `fireworks-tracing` 注册，用于跨线程传递 traceId）：
 
 ```java
 @Bean
 public ThreadPoolTaskExecutor orderExecutor(ThreadPoolTaskExecutorBuilder builder) {
-    return TaskExecutorUtil.build(
-            builder.corePoolSize(8)
-                    .maxPoolSize(16)
-                    .keepAlive(Duration.ofSeconds(60))
-                    .queueCapacity(200)          // 必须收敛，否则 maxPoolSize 形同虚设
-                    .threadNamePrefix("order-async-")
-                    .awaitTermination(true)
-                    .awaitTerminationPeriod(Duration.ofSeconds(30)),
-            new ThreadPoolExecutor.CallerRunsPolicy());   // 自动传递 traceId
+    ThreadPoolTaskExecutor executor = builder
+            .corePoolSize(8)
+            .maxPoolSize(16)
+            .keepAlive(Duration.ofSeconds(60))
+            .queueCapacity(20)           // 队列要小，maxPoolSize 才会被用到；大队列下并发恒为 core
+            .threadNamePrefix("order-async-")
+            .awaitTermination(true)
+            .awaitTerminationPeriod(Duration.ofSeconds(30))
+            .build();
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+    return executor;
 }
 ```
 
-`TaskExecutorUtil` 只补 Builder 的两处短板：拒绝策略没有配置入口、产出实例未 `initialize()`。
-Builder 一律从容器注入，不做"容器里没有就自己 new 一个"的降级 —— 那会让两条路径的默认值不一致
-（`corePoolSize` 会变成 Spring 默认的 `1` 而不是 Boot 的 `8`）。
+注意两点：
+
+- 「一个 Builder 产一个池」：Builder 是容器里的单例，链式调用会改掉它自己的字段，再用它建第二个池会继承上一个池的参数；
+- 若并发要恒定（投递、轮询这类内部任务），把 `maxPoolSize` 设为与 `corePoolSize` 相同——线程池是「先入队、队列满才扩容」，大队列下 `maxPoolSize` 永远不会被用到。
 
 ### 8. 校验工具
 
@@ -153,8 +164,11 @@ Instant createdAt = InstantUtil.now();
 // 需要按本地时区展示时，再转换为 LocalDateTime
 LocalDateTime local = ZoneUtil.toLocalDateTime(createdAt, ZoneId.of("Asia/Shanghai"));
 
-// 指数退避（重试场景）：第 n 次重试的延迟 / 下次重试时间
-Instant next = InstantUtil.calculateNextRetryTime(attempt, maxRetries, initialDelayMs, maxDelayMs, jitter, Instant.now());
+// 指数退避（重试场景）
+// retryCount 从 0 开始；四种形态都保证结果不超过 maxDelay
+Instant next = BackoffUtil.fullJitter(retryCount, baseDelay, maxDelay, Instant.now());       // AWS 推荐
+Instant next2 = BackoffUtil.percentageJitter(retryCount, baseDelay, maxDelay, 0.2, Instant.now()); // gRPC 风格
+Instant next3 = BackoffUtil.additiveJitter(retryCount, baseDelay, maxDelay, Duration.ofMillis(500), Instant.now()); // 持久化调度
 ```
 
 ### 9. Jackson 全局配置
@@ -252,7 +266,7 @@ logging:
 | `AesUtil` / `RsaUtil` / `Sm2Util` / `Sm4Util` | 对称 / 非对称 / 国密加解密 |
 | `StringUtil` / `SpelUtil` / `Base64Util` | 字符串、SpEL、Base64 工具 |
 | `DateUtil` / `InstantUtil` / `ZoneUtil` | 时间工具：本地时间格式、绝对时间点、时区换算（含指数退避） |
-| `TaskExecutorUtil` | 线程池工厂：基于容器注入的 Builder，补齐拒绝策略并初始化 |
+| `ThreadPoolUtil` | 框架内部线程池/调度器入口：显式参数、不读全局配置、不共享 Builder |
 | `ValidationUtil` | 常用格式校验 |
 | `@Sensitive` / `SensitiveType` / `SensitiveModule` | 数据脱敏 |
 | `LoggingDefaultsEnvironmentPostProcessor` | 日志默认格式注入（最低优先级；`logging.pattern.*` 等标准开关仍可覆盖） |

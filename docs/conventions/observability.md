@@ -88,7 +88,8 @@ log.error("create order failed: {}", e.getMessage());
 - 【强制】核心 API 必须能通过 traceId 定位**完整调用链**。
 - 【强制】跨线程 / 跨异步边界的任务必须显式传递链路上下文，否则链路会在异步边界断裂。
   框架由 `fireworks-tracing` 注册容器中唯一的 `ContextPropagatingTaskDecorator` 自动完成：`@Async` 与
-  `TaskExecutorUtil` 构建的线程池开箱即用；自行 `new Thread` / 自建 `ExecutorService` 不在覆盖范围内。
+  通过 `ThreadPoolTaskExecutorBuilder` 声明的线程池开箱即用（Spring 自动应用唯一 `TaskDecorator`）；
+  自行 `new Thread` / 自建 `ExecutorService` 不在覆盖范围内。
 - 【推荐】把数据库慢查询、HTTP Client、MQ 消费纳入监控。
 - 【推荐】关键业务量与失败量以**指标**表达，而不是靠日志逐条计数（日志只作为下钻手段）。
 - 【推荐】健康检查区分"进程存活"与"依赖可用"，避免依赖不可用时被调度器反复重启。
