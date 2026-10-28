@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.yzm.fireworks.mybatisplus.support.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.reflection.MetaObject;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.time.Instant;
@@ -27,6 +28,20 @@ import java.time.Instant;
 public class AuditMetaObjectHandler implements MetaObjectHandler {
 
     private final ObjectProvider<CurrentUserProvider> currentUserProvider;
+
+    /**
+     * 启动期校验：多个 {@link CurrentUserProvider} 时 {@code getIfAvailable()} 会在<b>每次写库</b>
+     * 抛 {@code NoUniqueBeanDefinitionException}（现象是"突然所有 insert/update 都失败"），
+     * 提前到启动期失败并给出可读文案。
+     */
+    @PostConstruct
+    public void init() {
+        long count = currentUserProvider.orderedStream().count();
+        if (count > 1) {
+            throw new IllegalStateException("检测到 " + count + " 个 CurrentUserProvider，请只保留一个："
+                    + currentUserProvider.orderedStream().map(p -> p.getClass().getName()).toList());
+        }
+    }
 
     @Override
     public void insertFill(MetaObject metaObject) {

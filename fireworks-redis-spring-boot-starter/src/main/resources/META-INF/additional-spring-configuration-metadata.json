@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "fireworks.redis.multi.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "是否启用多数据源 Redis（默认关闭，需显式开启）。"
+    }
+  ]
+}

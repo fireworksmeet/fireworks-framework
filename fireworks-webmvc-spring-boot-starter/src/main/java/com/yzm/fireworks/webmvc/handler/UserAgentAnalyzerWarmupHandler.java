@@ -3,9 +3,12 @@ package com.yzm.fireworks.webmvc.handler;
 import com.google.common.base.Stopwatch;
 import com.yzm.fireworks.webmvc.util.ClientInfoUtil;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.PreDestroy;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * UserAgentAnalyzer 启动预热组件。
@@ -14,14 +17,15 @@ import org.springframework.scheduling.annotation.Async;
  * 若不预热，第一个触发 {@link ClientInfoUtil} 的业务请求会被完全阻塞。
  *
  * <p>本组件监听 {@link ApplicationReadyEvent}（Spring 容器完全就绪、
- * 对外接受请求之前的最后一个生命周期事件），在独立线程中提前触发
- * {@link ClientInfoUtil#getAnalyzer()} 完成 yaml 加载，
- * 后续所有请求直接复用已就绪的单例，不再有任何阻塞。
+ * 对外接受请求之前的最后一个生命周期事件），提交到一个<b>自带的后台线程</b>中触发
+ * {@link ClientInfoUtil#getAnalyzer()} 完成 yaml 加载，后续请求直接复用已就绪的单例。
  *
- * <p><b>为什么用 {@code ApplicationReadyEvent} 而非 {@code @PostConstruct}？</b><br>
- * {@code @PostConstruct} 在 Bean 初始化阶段同步执行，若此处触发耗时操作会拖慢整个
- * Spring 容器启动。{@code ApplicationReadyEvent} 在容器完全启动后才发布，
- * 配合 {@code @Async} 可在后台线程并行预热，不阻塞主线程。
+ * <p><b>为什么用自带线程而不是 {@code @Async}</b>：{@code @Async} 只有在业务应用标注了
+ * {@code @EnableAsync} 时才生效，未标注就会被静默忽略、预热同步执行，导致
+ * {@code ApplicationReadyEvent} 延后 5~15 秒（K8s readiness 探针会跟着晚就绪）。
+ * 预热属于框架自身行为，不应依赖业务是否开启异步。
+ *
+ * <p>线程为 daemon，并在容器关闭时 {@code shutdownNow()}，不阻塞 JVM 退出。
  *
  * <p>此组件由 {@link com.yzm.fireworks.webmvc.WebMvcAutoConfiguration} 条件注册，
  * 仅在 {@code fireworks.webmvc.client-info.enabled=true} 时才加载。
@@ -31,17 +35,21 @@ import org.springframework.scheduling.annotation.Async;
 @Slf4j
 public class UserAgentAnalyzerWarmupHandler {
 
+    private final ExecutorService preheatExecutor = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "yauaa-warmup");
+        thread.setDaemon(true);
+        return thread;
+    });
+
     /**
-     * 应用就绪后异步预热 UserAgentAnalyzer。
-     *
-     * <p>{@code @Async} 需要在任意 {@code @Configuration} 类上标注
-     * {@code @EnableAsync} 方可生效；若项目已开启则直接生效，
-     * 否则预热方法会在发布事件的线程上同步执行（仍在启动末尾，不影响业务请求，
-     * 但会稍微延长启动日志中 "Started XxxApplication" 的出现时机）。
+     * 应用就绪后提交预热任务，立即返回，不阻塞发布事件的线程。
      */
-    @Async
     @EventListener(ApplicationReadyEvent.class)
     public void warmup() {
+        preheatExecutor.execute(this::preheat);
+    }
+
+    private void preheat() {
         log.info("[Yauaa] 开始异步预热 UserAgentAnalyzer，加载 yaml 规则文件...");
         Stopwatch stopwatch = Stopwatch.createStarted();
         try {
@@ -51,5 +59,10 @@ public class UserAgentAnalyzerWarmupHandler {
         } catch (Exception e) {
             log.error("[Yauaa] UserAgentAnalyzer 预热失败", e);
         }
+    }
+
+    @PreDestroy
+    public void destroy() {
+        preheatExecutor.shutdownNow();
     }
 }

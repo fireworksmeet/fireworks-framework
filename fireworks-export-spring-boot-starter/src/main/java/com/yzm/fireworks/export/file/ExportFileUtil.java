@@ -1,12 +1,10 @@
 package com.yzm.fireworks.export.file;
 
+import com.yzm.fireworks.common.util.UuidUtil;
 import lombok.experimental.UtilityClass;
 
-import java.util.UUID;
 import java.util.regex.Pattern;
 
-import static com.yzm.fireworks.common.constants.StringPool.EMPTY;
-import static com.yzm.fireworks.common.constants.StringPool.HYPHEN;
 import static com.yzm.fireworks.common.constants.StringPool.UNDERSCORE;
 
 /**
@@ -46,14 +44,7 @@ public class ExportFileUtil {
      * 并截断到 80 字符；空名回落为 {@code export}。
      */
     public static String uniqueName(String baseName) {
-        return sanitize(baseName) + UNDERSCORE + uuid() + XLSX_SUFFIX;
-    }
-
-    /**
-     * 32 位紧凑格式 UUID（无连字符）。
-     */
-    public static String uuid() {
-        return UUID.randomUUID().toString().replace(HYPHEN, EMPTY);
+        return sanitize(baseName) + UNDERSCORE + UuidUtil.uuid32() + XLSX_SUFFIX;
     }
 
     private static String sanitize(String baseName) {

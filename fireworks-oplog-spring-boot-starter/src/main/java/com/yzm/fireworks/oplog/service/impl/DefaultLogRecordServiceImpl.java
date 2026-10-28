@@ -17,6 +17,9 @@ public class DefaultLogRecordServiceImpl implements ILogRecordService {
 
     @Override
     public void save(LogRecord logRecord) {
-        log.debug("logRecord:{}", logRecord);
+        // 只打定位所需字段：整对象 toString 会带出操作人姓名、action 业务文案与 extra，
+        // DEBUG 一开就等于把业务数据写进日志文件
+        log.debug("logRecord: type={}, bizNo={}, createdAt={}",
+                logRecord.getType(), logRecord.getBizNo(), logRecord.getCreatedAt());
     }
 }

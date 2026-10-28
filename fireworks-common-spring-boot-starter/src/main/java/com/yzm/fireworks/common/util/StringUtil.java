@@ -93,12 +93,15 @@ public class StringUtil {
         return str != null ? str : defaultStr;
     }
 
-    @SafeVarargs
-    public static <T extends CharSequence> T firstNonBlank(T... values) {
+    /**
+     * 返回第一个非空白（trim 后有内容）的值，全为空则返回 {@code null}。
+     * <p>返回值已去除首尾空白。
+     */
+    public static String firstNonBlank(CharSequence... values) {
         if (values != null) {
-            for (T value : values) {
+            for (CharSequence value : values) {
                 if (StringUtils.hasText(value)) {
-                    return value;
+                    return value.toString().trim();
                 }
             }
         }

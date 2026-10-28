@@ -21,11 +21,6 @@ import java.time.Duration;
 public class MessageProperties {
 
     /**
-     * 是否启用消息模块
-     */
-    private boolean enabled = false;
-
-    /**
      * 渠道配置
      */
     private Channels channels = new Channels();

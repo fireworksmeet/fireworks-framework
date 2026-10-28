@@ -335,19 +335,6 @@ public enum TokenErrorCode {
 | `fireworks-rest-client` | 服务间调用可用短 TTL 令牌，自行拼 `Bearer ` 前缀 |
 | `fireworks-id` | 需要业务化 `jti` 时提供 `Supplier<String>` 覆盖 |
 
-## 从旧版本迁移
-
-旧实现（`TokenUtil` / `JWTClaim` / `JWTProperties`）已整体删除，配置前缀由 `fireworks.token.jwt.*` 改为 `fireworks.token.*`：
-
-| 旧 API | 新 API |
-| --- | --- |
-| `TokenUtil#generateJwtToken(JWTClaim)` | `JwtIssuer#issue(TokenSpec)` |
-| `TokenUtil#parseJwtToken(String)` | `JwtVerifier#verify(String)` → `TokenClaims` |
-| `TokenUtil#generateSecureToken()` | `OpaqueToken.generate()` |
-| `TokenUtil.extractToken` / `extractTokenOrThrow` | 删除，Bearer 提取归 `fireworks-security` |
-| `TokenUtil.removePrefixBearer` / `appendPrefixBearer` | 删除，`"Bearer " + token` 一行足够 |
-| `TokenException` | `TokenValidationException`（带 `code`）/ `TokenConfigurationException` |
-
 ## 版本策略
 
 - `nimbus-jose-jwt` 版本只在 `fireworks-dependencies` 声明，当前 **10.9.1**（修复 `CVE-2025-53864` 深嵌套 JSON DoS）。

@@ -5,7 +5,6 @@ import com.yzm.fireworks.common.expression.SpelEvaluator;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.aop.support.AopUtils;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.expression.AnnotatedElementKey;
 import org.springframework.util.StringUtils;
 
@@ -32,7 +31,7 @@ public class DistributedLockInterceptor implements MethodInterceptor {
     private final DistributedLockMetadataSource metadataSource;
     private final LockService lockService;
 
-    public DistributedLockInterceptor(DistributedLockMetadataSource metadataSource, @Lazy LockService lockService) {
+    public DistributedLockInterceptor(DistributedLockMetadataSource metadataSource, LockService lockService) {
         this.metadataSource = metadataSource;
         this.lockService = lockService;
     }

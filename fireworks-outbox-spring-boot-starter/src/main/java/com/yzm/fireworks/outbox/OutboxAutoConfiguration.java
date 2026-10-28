@@ -31,6 +31,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 import java.util.List;
 
+import static com.yzm.fireworks.common.constants.StringPool.UNKNOWN;
+
 /**
  * Outbox 自动配置。
  *
@@ -99,6 +101,8 @@ public class OutboxAutoConfiguration {
     /**
      * 投递 Worker：按 {@code fireworks.outbox.lanes} 拆成多个道，每道独立领取条件与线程池。
      * <p>未配置分道时只有一个默认道，行为与之前一致。
+     * <p>应用名兜底为 {@code unknown}（workerId 形如 {@code unknown-host-1a2b3c4d}），
+     * 与 export、{@code Result} 使用同一个常量；未配置时不伪装成某个应用名。
      */
     @Bean
     @ConditionalOnMissingBean
@@ -107,7 +111,7 @@ public class OutboxAutoConfiguration {
                                      OutboxDispatcher outboxDispatcher,
                                      OutboxProperties properties,
                                      ObjectProvider<TaskDecorator> taskDecorators,
-                                     @Value("${spring.application.name:application}") String applicationName) {
+                                     @Value("${spring.application.name:" + UNKNOWN + "}") String applicationName) {
         List<OutboxLane> lanes = OutboxLaneFactory.build(properties, taskDecorators.getIfUnique());
         log.info("[Outbox] 投递分道: {}", lanes.stream()
                 .map(lane -> "%s(batch=%d, concurrency=%d)".formatted(

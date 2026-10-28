@@ -8,12 +8,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import static com.yzm.fireworks.redis.RedisUtil.checkKey;
 
 
 /**
@@ -127,7 +131,7 @@ public class RedisContext {
         if (ObjectUtils.isEmpty(map)) {
             return;
         }
-        map.keySet().forEach(this::checkKey);
+        map.keySet().forEach(RedisUtil::checkKey);
         jsonRedisTemplate.opsForValue().multiSet(map);
     }
 
@@ -135,17 +139,21 @@ public class RedisContext {
         if (ObjectUtils.isEmpty(map)) {
             return;
         }
-        map.keySet().forEach(this::checkKey);
+        map.keySet().forEach(RedisUtil::checkKey);
+        // 用毫秒而非秒：亚秒超时 (如 500ms) 换算成秒会变成 0，EXPIRE 0 等于立即删除
+        long expireMillis = unit.toMillis(timeout);
+        Assert.isTrue(expireMillis > 0, "过期时间必须大于 0，当前为 " + timeout + " " + unit);
         Jackson2JsonRedisSerializer<Object> valueSerializer = jsonRedisTemplate.getValueSerializer();
-        long expireTime = unit.toSeconds(timeout);
+        RedisSerializer<String> keySerializer = jsonRedisTemplate.getKeySerializer();
         Map<byte[], byte[]> tuple = map.entrySet().stream()
                 .collect(Collectors.toMap(
-                        entry -> entry.getKey().getBytes(),
+                        // 与其它路径一致：走 UTF-8 序列化，而不是平台默认字符集
+                        entry -> keySerializer.serialize(entry.getKey()),
                         entry -> valueSerializer.serialize(entry.getValue())
                 ));
         jsonRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
             connection.stringCommands().mSet(tuple);
-            tuple.keySet().forEach(key -> connection.keyCommands().expire(key, expireTime));
+            tuple.keySet().forEach(key -> connection.keyCommands().pExpire(key, expireMillis));
             return null;
         });
     }
@@ -163,7 +171,7 @@ public class RedisContext {
         if (ObjectUtils.isEmpty(keys)) {
             return 0L;
         }
-        keys.forEach(this::checkKey);
+        keys.forEach(RedisUtil::checkKey);
         return jsonRedisTemplate.delete(keys);
     }
 
@@ -419,7 +427,7 @@ public class RedisContext {
     // ==================== Scan 操作 ====================
 
     public void scan(String pattern, Consumer<List<String>> consumer) {
-        scan(pattern, consumer, Constants.DEFAULT_BATCH_COUNT);
+        scan(pattern, consumer, RedisConstants.DEFAULT_BATCH_COUNT);
     }
 
     public void scan(String pattern, Consumer<List<String>> consumer, int batchCount) {
@@ -429,7 +437,8 @@ public class RedisContext {
             while (cursor.hasNext()) {
                 keys.add(cursor.next());
                 if (keys.size() >= batchCount) {
-                    consumer.accept(keys);
+                    // 传副本：keys 会被复用，直接交出去后 clear() 会让异步消费方读到空列表
+                    consumer.accept(new ArrayList<>(keys));
                     keys.clear();
                 }
             }
@@ -479,9 +488,4 @@ public class RedisContext {
         }
     }
 
-    // ==================== 私有工具 ====================
-
-    private void checkKey(String key) {
-        RedisUtil.checkKey(key);
-    }
 }

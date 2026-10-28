@@ -39,11 +39,6 @@ import java.util.List;
 public class OutboxProperties {
 
     /**
-     * 是否启用 Outbox（默认启用；引入本 starter 即代表需要它）
-     */
-    private boolean enabled = true;
-
-    /**
      * 链路追踪 ID 在 MDC 中的键名（Micrometer Tracing Brave 默认写入 {@code traceId}）
      */
     private String traceIdKey = "traceId";
@@ -105,11 +100,6 @@ public class OutboxProperties {
     public static class Worker {
 
         /**
-         * 是否启动投递 Worker（关闭后事件只入库、不投递，通常用于测试或灰度）
-         */
-        private boolean enabled = true;
-
-        /**
          * 单次领取的最大事件数
          */
         private int batchSize = 100;
@@ -142,11 +132,6 @@ public class OutboxProperties {
 
     @Data
     public static class Recovery {
-
-        /**
-         * 是否启用 PROCESSING 超时恢复
-         */
-        private boolean enabled = true;
 
         /**
          * 恢复扫描间隔

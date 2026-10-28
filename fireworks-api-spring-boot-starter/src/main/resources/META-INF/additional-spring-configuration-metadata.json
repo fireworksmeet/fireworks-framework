@@ -1,0 +1,16 @@
+{
+  "properties": [
+    {
+      "name": "fireworks.exposed-enum.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "是否启用暴露枚举的自动扫描（默认关闭，需显式开启）。"
+    },
+    {
+      "name": "fireworks.api.validator.fail-fast",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用 Hibernate Validator 快速失败（默认开启）。注意该配置全局生效，影响所有 @Valid 校验。"
+    }
+  ]
+}

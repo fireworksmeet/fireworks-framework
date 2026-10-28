@@ -28,4 +28,14 @@ public class SortDefinition {
     public List<OrderItem> getItems() {
         return Collections.unmodifiableList(items);
     }
+
+    /**
+     * 快照副本：{@link SortBuilder#build()} 用它冻结当前结果，
+     * 避免 build 之后继续 {@code asc/desc} 改到已交付（甚至已注册）的定义。
+     */
+    SortDefinition copy() {
+        SortDefinition copy = new SortDefinition();
+        copy.items.addAll(this.items);
+        return copy;
+    }
 }

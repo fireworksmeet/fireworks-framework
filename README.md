@@ -51,7 +51,7 @@ fireworks-api-spring-boot-starter          ─┤ API 层（Result/分页/BizExc
 | `fireworks-message` | 消息推送 | WebSocket/短信(阿里/腾讯)/邮件/去重/限流/记录 |
 | `fireworks-id` | ID 生成 | CosId 号段/雪花双模式（互斥）/`IdUtil` |
 | `fireworks-token` | Token | JWT 签发/校验（多密钥 `kid` 轮换、签发唯一/验签全量、失败分类）、不透明令牌原语；零 Web 依赖 |
-| `fireworks-security` | 安全认证 | Spring Security 集成/Header Token 认证/`@RequirePermission` 权限校验 |
+| `fireworks-security` | 安全认证 | Spring Security 集成/默认安全链/`SecurityUserResolver` 扩展点/角色与权限转 `GrantedAuthority` |
 | `fireworks-rest-client` | HTTP 客户端 | RestClient 连接池/超时/负载均衡/接口代理 |
 | `fireworks-webflux-client` | 响应式客户端 | WebClient 连接池/超时/负载均衡/接口代理 |
 | `fireworks-xxljob` | 定时任务 | XXL-JOB 执行器自动配置/IP 探测/地址注册 |

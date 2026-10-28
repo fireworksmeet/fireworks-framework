@@ -3,11 +3,11 @@ package com.yzm.fireworks.webmvc.service;
 import com.yzm.fireworks.webmvc.properties.IpLocationProperties;
 import com.yzm.fireworks.webmvc.util.IpAddressUtils;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.lionsoul.ip2region.service.Config;
 import org.lionsoul.ip2region.service.Ip2Region;
-import org.springframework.beans.factory.DisposableBean;
+import jakarta.annotation.PreDestroy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -33,7 +33,7 @@ import static com.yzm.fireworks.common.constants.StringPool.UNKNOWN;
  * @author JYuan
  */
 @Slf4j
-public class IpLocationService implements DisposableBean {
+public class IpLocationService {
 
     private static final String LOCAL = "本地";
 
@@ -166,15 +166,24 @@ public class IpLocationService implements DisposableBean {
         return "0".equals(val) ? UNKNOWN : val;
     }
 
-    @Override
-    public void destroy() throws Exception {
-        ip2Region.close();
+    @PreDestroy
+    public void destroy() {
+        try {
+            ip2Region.close();
+        } catch (InterruptedException e) {
+            // 关闭被中断：恢复中断标记，销毁流程不再往上抛
+            Thread.currentThread().interrupt();
+            log.warn("关闭 ip2region 时被中断", e);
+        }
     }
 
     /**
-     * 地理位置信息
+     * 地理位置信息。
+     *
+     * <p><b>只读</b>：{@link #UNKNOWN_LOCATION} / {@link #LOCAL_LOCATION} 是跨请求共享的静态实例，
+     * 一旦生成 setter，任何调用方都能永久改写全局常量。
      */
-    @Data
+    @Getter
     @Builder
     public static class LocationInfo {
         private String country;      // 国家

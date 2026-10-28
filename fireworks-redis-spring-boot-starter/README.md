@@ -39,22 +39,30 @@ spring:
 需要同时使用多个 Redis 实例时，启用 `multi`：
 
 ```yaml
-spring:
-  data:
-    redis:
-      multi:
-        enabled: true     # 开启多数据源
-        primary: aaa      # 默认数据源名称，未显式指定时使用
-        datasource:
-          aaa:            # 自定义数据源名称，值为 RedisProperties 相关配置
-            host: 192.168.145.128
-            port: 6379
-            timeout: 3000
-          bbb:
-            host: 192.168.145.129
-            port: 6379
-            timeout: 3000
+fireworks:
+  redis:
+    multi:
+      enabled: true
+      primary: aaa            # 默认数据源名称，必须是 datasource 下的某个 key
+      datasource:
+        aaa:                  # 数据源名称，即 RedisUtil.on("aaa") 的参数
+          host: 192.168.145.128
+          port: 6379
+          timeout: 3000
+        bbb:
+          host: 192.168.145.129
+          port: 6379
+          timeout: 3000
 ```
+
+每个数据源支持：`host` / `port` / `username` / `password` / `database` / `timeout` /
+`connect-timeout` / `client-name` / `ssl.enabled` / `cluster.nodes` / `cluster.max-redirects` /
+`pool.enabled` / `pool.max-active` / `pool.max-idle` / `pool.min-idle` / `pool.max-wait` /
+`pool.time-between-eviction-runs`。
+
+> 写错或不支持的键（如 `sentinel`、`url`、`lettuce.*`）会在启动期失败
+> （`ignoreUnknownFields = false`），不会被静默忽略。需要更细的 Lettuce 调优时，
+> 注册 `LettuceClientConfigurationBuilderCustomizer` 即可。
 
 ### 4. 切换数据源
 
@@ -115,11 +123,17 @@ lockService.executeWithLock("order:123", () -> doSomething());
 // 切换到 order 数据源
 lockService.on("order").executeWithLock("order:123", () -> doSomething());
 
-// 仅尝试获取锁（不抛异常）
-boolean locked = lockService.tryLock("order:123", 5, TimeUnit.SECONDS);
+// 仅尝试获取锁：拿到句柄后必须释放（推荐 try-with-resources）
+try (LockService.LockHandle lock =
+             lockService.tryLock("order:123", 5, TimeUnit.SECONDS).orElse(null)) {
+    if (lock == null) {
+        return;   // 没抢到，直接跳过
+    }
+    // 业务
+}
 
-// 获取锁，失败抛 LockAcquisitionException
-lockService.lockOrThrow("order:123", 5, TimeUnit.SECONDS);
+// 需要"抢不到就抛 LockAcquisitionException"时用 executeWithLock（内部已保证释放）
+lockService.executeWithLock("order:123", 5, TimeUnit.SECONDS, () -> doSomething());
 ```
 
 ## Pipeline 使用注意事项

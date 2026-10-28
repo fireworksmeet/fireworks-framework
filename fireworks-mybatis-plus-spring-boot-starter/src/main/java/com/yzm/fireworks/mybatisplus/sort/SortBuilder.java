@@ -51,8 +51,11 @@ public class SortBuilder {
         return desc(getFieldName(column));
     }
 
+    /**
+     * 返回当前排序的快照；之后再调用 {@code asc/desc} 不会影响已经 build 的结果。
+     */
     public SortDefinition build() {
-        return definition;
+        return definition.copy();
     }
 
     /**

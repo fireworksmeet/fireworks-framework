@@ -242,9 +242,14 @@ public final class S3StorageService {
         } catch (NoSuchKeyException | NoSuchBucketException e) {
             return false;
         } catch (S3Exception e) {
-            // 兼容阿里云 OSS S3 兼容模式：缺失对象或未授权读取元数据时返回 404/403
-            if (e.statusCode() == 404 || e.statusCode() == 403) {
+            if (e.statusCode() == 404) {
                 return false;
+            }
+            // 403 是"无权限读取元数据"，不是"不存在"。若按 false 处理，会触发重复上传或数据重建，
+            // 把权限配置错误伪装成"文件没了"。
+            if (e.statusCode() == 403) {
+                throw new StorageException(String.format(
+                        "无权限读取对象元数据（403），无法判断是否存在: %s/%s", targetBucket, targetKey), e);
             }
             throw new StorageException(String.format("doesObjectExist 失败: %s/%s", targetBucket, targetKey), e);
         } catch (Exception e) {
@@ -378,7 +383,8 @@ public final class S3StorageService {
             }
 
             long expiration = Instant.now().plus(effectiveDuration).getEpochSecond();
-            log.info("签发 PUT 直传凭证, bucket={}, key={}, ttlSeconds={}",
+            // 直传凭证按文件签发，量级等于上传次数：用 INFO 会把业务日志刷满
+            log.debug("签发 PUT 直传凭证, bucket={}, key={}, ttlSeconds={}",
                     targetBucket, targetKey, effectiveDuration.getSeconds());
 
             return DirectUploadCredential.builder()

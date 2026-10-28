@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "fireworks.xxljob.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "XXL-JOB 执行器总开关（默认关闭，需显式开启）。"
+    }
+  ]
+}

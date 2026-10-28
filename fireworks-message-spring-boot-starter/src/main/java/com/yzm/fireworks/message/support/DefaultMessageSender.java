@@ -9,8 +9,8 @@ import com.yzm.fireworks.message.api.MessageProvider;
 import com.yzm.fireworks.message.api.MessageSender;
 import com.yzm.fireworks.message.exception.MessageValidationException;
 import com.yzm.fireworks.message.properties.MessageProperties;
-import com.yzm.fireworks.redis.ratelimit.RateLimitRequest;
-import com.yzm.fireworks.redis.ratelimit.RateLimiter;
+import com.yzm.fireworks.common.ratelimit.RateLimitRequest;
+import com.yzm.fireworks.common.ratelimit.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 

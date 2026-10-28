@@ -6,10 +6,10 @@
 
 ## 能力
 
-- 渠道：阿里云短信、腾讯云短信、SMTP 邮件、Nchan 实时推送
+- 渠道：阿里云短信、腾讯云短信（厂商 SDK 为 optional，见《短信厂商 SDK》）、SMTP 邮件、Nchan 实时推送
 - 统一门面：`MessageSender#send(MessageEnvelope)`
 - 结果两态：`RetryableFailure`（环境恢复后可再试）/ `PermanentFailure`（重试无意义）
-- 限流：Redis GCRA，按渠道配置后生效
+- 限流：可插拔 `RateLimiter`（契约在 `common`，默认实现由 `fireworks-redis` 提供 GCRA），按渠道配置后生效
 - 事件钩子：`MessageListener`，用于业务落库、审计与指标
 
 明确不做：异步线程池、去重、幂等、发送记录落库、框架内重试。需要「不丢」时由业务使用 `fireworks-outbox-spring-boot-starter`。
@@ -22,6 +22,8 @@
     <artifactId>fireworks-message-spring-boot-starter</artifactId>
 </dependency>
 ```
+
+> 用短信渠道时还需引入对应厂商 SDK（optional，不会自动传递），见《短信厂商 SDK》。
 
 ```yaml
 fireworks:
@@ -123,6 +125,40 @@ public class SmsOutboxHandler implements OutboxHandler {
 
 `messageId` 必须在写 outbox 时确定，重放时复用记录中的值，客户端据此去重。框架不生成 ID。
 
+## 短信厂商 SDK（optional）
+
+阿里云 / 腾讯云 SDK 在本模块 pom 中是 `optional`，**不会传递给业务**：用哪家就引哪家。
+
+```xml
+<!-- 阿里云 -->
+<dependency>
+    <groupId>com.aliyun</groupId>
+    <artifactId>dysmsapi20170525</artifactId>
+</dependency>
+
+<!-- 腾讯云 -->
+<dependency>
+    <groupId>com.tencentcloudapi</groupId>
+    <artifactId>tencentcloud-sdk-java-sms</artifactId>
+    <exclusions>
+        <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
+```
+
+| 引入情况 | 装配结果 |
+| --- | --- |
+| 只引阿里云 SDK | 自动装配 `AliyunSmsProvider` |
+| 只引腾讯云 SDK | 自动装配 `TencentSmsProvider` |
+| 两个都引 | 由 `fireworks.message.channels.sms.provider` 决定；未配置则启动失败并提示 |
+| 都不引但 `sms.enabled=true` | 启动失败，提示检查 SDK 与 `provider` |
+
+> 版本由 `fireworks-dependencies` 管理，不必写 `<version>`。
+> 腾讯云的 `commons-logging` 排除需要**自己加**：optional 依赖的 exclusion 不会传递给业务。
+
 ## 渠道契约
 
 - **短信**：必须使用厂商模板（`template` 传模板 ID），参数只来自 `params`；手机号支持 E.164 或国内 11 位，框架不改写；腾讯云、阿里云均原生接受这两种格式，仅当实现所调 API 强制 E.164 时才由其自行补全国家码（国际号码须自带国家码）；签名与模板 ID 可走配置默认值
@@ -134,10 +170,16 @@ public class SmsOutboxHandler implements OutboxHandler {
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
 | `fireworks.message.enabled` | `false` | 模块开关 |
-| `fireworks.message.channels.sms.provider` | 无 | `ALIYUN` 或 `TENCENT`，两个实现时必填 |
+| `fireworks.message.channels.sms.provider` | 无 | `ALIYUN` 或 `TENCENT`；只引入一个厂商 SDK 时可省略，两个都引入时必填 |
 | `fireworks.message.channels.*.rate-limit` | 无 | 不配置即不限流 |
 | `fireworks.message.channels.realtime.nchan.channel-id-delimiter` | `,` | 频道 ID 分隔符，须与 Nginx `nchan_channel_id_split_delimiter` 一致；单个可打印 ASCII 字符 |
 | `fireworks.message.channels.realtime.nchan.max-channel-path-bytes` | `4096` | 单次 publish 频道串上限 |
 | `fireworks.message.channels.realtime.nchan.max-channels-per-publish` | `200` | 单次 publish 频道数上限 |
 
-限流只有 Redis 实现；Redis 不可用时**阻断发送**并返回 `RetryableFailure`，防止失去保护后超发。
+限流契约是 `com.yzm.fireworks.common.ratelimit.RateLimiter`：
+
+- 引入 `fireworks-redis` → 自动注册 GCRA 实现（Redis 不可用时**阻断发送**并返回 `RetryableFailure`，防止失去保护后超发）；
+- 业务注册自己的实现（Sentinel、网关限流、内存令牌桶）→ 覆盖默认实现；
+- 容器里没有任何实现 → 配置了限流也不生效，只打一条 WARN 并放行（fail-open）。
+
+因此 `fireworks-message` **不依赖** `fireworks-redis`：只发短信/邮件的应用不必引入 Redis。

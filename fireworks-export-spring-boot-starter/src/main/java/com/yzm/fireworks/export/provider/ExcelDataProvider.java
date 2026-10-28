@@ -155,17 +155,20 @@ public interface ExcelDataProvider<T> {
     }
 
     /**
-     * 内部辅助方法：校验两条记录是否代表同一个主对象
+     * 内部辅助方法：校验两条记录是否代表同一个主对象。
+     * <p>只有提供 {@code idExtractor} 时才做合并；否则一律视为不同记录。
      */
     private <P> boolean isSameRecord(P previous, P current, Function<P, Object> idExtractor) {
         if (previous == current) {
             return true;
         }
-        if (idExtractor != null) {
-            Object prevId = idExtractor.apply(previous);
-            Object currId = idExtractor.apply(current);
-            return prevId != null && prevId.equals(currId);
+        if (idExtractor == null) {
+            // 没有主键提取器时不能按 equals 合并：两条字段完全相同的独立记录会被当成
+            // 「同一主记录的嵌套行」而丢弃，导出结果少数据且无任何提示
+            return false;
         }
-        return Objects.equals(previous, current);
+        Object prevId = idExtractor.apply(previous);
+        Object currId = idExtractor.apply(current);
+        return prevId != null && prevId.equals(currId);
     }
 }

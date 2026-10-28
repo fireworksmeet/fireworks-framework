@@ -17,6 +17,8 @@ public interface ExcelExporter {
      * 将 Excel 数据流直接写入指定的 OutputStream（支持 Web 响应流、文件输出流等）。
      * <p>
      * 适合小数据量：数据边读边写，不落盘；调用方自行负责限额与超时。
+     * <p><b>本方法不关闭 {@code outputStream}</b>：导出结束后仍可继续往同一个流里写
+     * （如包一层 {@code ZipOutputStream}）。流的生命周期由调用方管理。
      */
     <Q> void exportToStream(OutputStream outputStream, ExportContext<Q> context, ExcelDataProvider<Q> dataProvider);
 

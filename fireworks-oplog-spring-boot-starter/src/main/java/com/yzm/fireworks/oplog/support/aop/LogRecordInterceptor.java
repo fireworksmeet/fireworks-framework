@@ -1,6 +1,5 @@
 package com.yzm.fireworks.oplog.support.aop;
 
-import com.yzm.fireworks.common.expression.SpelTemplateRenderer;
 import com.yzm.fireworks.oplog.beans.CodeVariableType;
 import com.yzm.fireworks.oplog.beans.LogRecord;
 import com.yzm.fireworks.oplog.beans.LogRecordOps;
@@ -15,11 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.aop.support.AopUtils;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -27,7 +26,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * 操作日志拦截器
@@ -40,7 +38,11 @@ import java.util.Objects;
  * @author mzt.
  */
 @Slf4j
-public class LogRecordInterceptor extends LogRecordValueParser implements MethodInterceptor, Serializable, SmartInitializingSingleton {
+public class LogRecordInterceptor extends LogRecordValueParser implements MethodInterceptor, SmartInitializingSingleton {
+
+    public LogRecordInterceptor(BeanFactory beanFactory) {
+        super(beanFactory);
+    }
 
     @Setter
     private LogRecordOperationSource logRecordOperationSource;
@@ -185,9 +187,7 @@ public class LogRecordInterceptor extends LogRecordValueParser implements Method
     private void saveLog(Method method, boolean flag, LogRecordOps operation, Operator operator,
                          String action, Map<String, Object> expressionValues) {
         Object actionValue = expressionValues.get(action);
-        if (!StringUtils.hasText(asString(actionValue))
-                || (!skipUnrenderedLog && SpelTemplateRenderer.containsPlaceholder(action)
-                    && Objects.equals(action, actionValue))) {
+        if (!StringUtils.hasText(asString(actionValue))) {
             return;
         }
         LogRecord logRecord = LogRecord.builder()
@@ -244,13 +244,6 @@ public class LogRecordInterceptor extends LogRecordValueParser implements Method
 
     public void setTenant(String tenantId) {
         this.tenantId = tenantId;
-    }
-
-    /**
-     * 设置是否跳过"未真正渲染"的日志
-     */
-    public void setSkipUnrenderedLog(boolean skipUnrenderedLog) {
-        this.skipUnrenderedLog = skipUnrenderedLog;
     }
 
     private Class<?> getTargetClass(Object target) {

@@ -23,23 +23,24 @@
             <artifactId>fireworks-rest-client-spring-boot-starter</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.yzm.fireworks</groupId>
-            <artifactId>fireworks-redis-spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!-- 短信厂商 SDK：optional，不传递到业务；classpath 上有哪个就装配哪个实现。
+             版本由 fireworks-dependencies 管理，业务按需引入时不必写版本号。 -->
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>dysmsapi20170525</artifactId>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.tencentcloudapi</groupId>
             <artifactId>tencentcloud-sdk-java-sms</artifactId>
+            <optional>true</optional>
             <exclusions>
                 <!-- 腾讯云 SDK 传递引入 commons-logging 1.2；Spring 的 spring-jcl 已提供同名 API 并桥接到 SLF4J，
-                     两者共存会触发 spring-jcl 的“Standard Commons Logging discovery”冲突告警，故排除 -->
+                     两者共存会触发 spring-jcl 的“Standard Commons Logging discovery”冲突告警，故排除。
+                     注意：本依赖是 optional，业务自行引入该 SDK 时需自行加同样的 exclusion。 -->
                 <exclusion>
                     <groupId>commons-logging</groupId>
                     <artifactId>commons-logging</artifactId>
@@ -53,11 +54,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

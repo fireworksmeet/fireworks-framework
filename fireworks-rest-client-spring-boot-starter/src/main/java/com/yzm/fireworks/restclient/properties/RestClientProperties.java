@@ -14,15 +14,19 @@ import java.time.Duration;
  * <pre>
  * fireworks:
  *   rest-client:
- *     connection-request-timeout: 800ms   # 从连接池取连接的等待上限，快速失败
- *     max-conn-total: 500                 # 连接池总容量
- *     max-conn-per-route: 200             # 单个目标主机最大连接数
- *     time-to-live: 5m                    # 连接自建立起的总存活时间（不是空闲时间）
+ *     acquire-timeout: 1s                 # 从连接池取连接的等待上限，快速失败
+ *     max-connections: 500                # 连接池总容量
+ *     max-connections-per-route: 200      # 单个目标主机最大连接数
+ *     max-life-time: 5m                   # 连接自建立起的总存活时间（不是空闲时间）
  *     max-idle-time: 30s                  # 空闲多久被回收
  *     validate-after-inactivity: 2s       # 连接闲置多久后重新校验（防服务端已断开）
  * </pre>
  *
- * <p>取值语义与 HC5 一致：{@code -1} 表示不限制（如 {@code time-to-live: -1ms}）。
+ * <p>键名与 {@code fireworks.webflux-client} 对齐：{@code max-connections} /
+ * {@code acquire-timeout} / {@code max-life-time} / {@code max-idle-time} 在两个客户端里同名同义，
+ * 业务不必记两套名字。
+ *
+ * <p>取值语义与 HC5 一致：{@code -1} 表示不限制（如 {@code max-life-time: -1ms}）。
  *
  * @author JYuan
  */
@@ -32,30 +36,29 @@ public class RestClientProperties {
 
     /**
      * 从连接池获取连接的等待上限，超时抛 {@code ConnectionPoolTimeoutException}。
-     * <p>快速失败优于无限排队；频繁超时说明 {@link #maxConnPerRoute} 不足。
-     * <p>推荐值：500~1000ms
+     * <p>快速失败优于无限排队；频繁超时说明 {@link #maxConnectionsPerRoute} 不足。
      */
-    private Duration connectionRequestTimeout = Duration.ofMillis(800);
+    private Duration acquireTimeout = Duration.ofSeconds(1);
 
     /**
      * 连接池总最大连接数。
-     * <p>推荐值 = Σ(各目标主机的 maxConnPerRoute)；只调一个目标主机时两者可相等。
+     * <p>推荐值 = Σ(各目标主机的 {@link #maxConnectionsPerRoute})；只调一个目标主机时两者可相等。
      */
-    private int maxConnTotal = 500;
+    private int maxConnections = 500;
 
     /**
      * 单个目标主机（Route）的最大连接数。
-     * <p>推导公式：{@code maxConnPerRoute ≥ 峰值QPS × 平均响应时间(秒) × 1.5}。
+     * <p>推导公式：{@code maxConnectionsPerRoute ≥ 峰值QPS × 平均响应时间(秒) × 1.5}。
      * <p>示例：峰值 500QPS、平均响应 200ms → 150，取 200。
      */
-    private int maxConnPerRoute = 200;
+    private int maxConnectionsPerRoute = 200;
 
     /**
      * 连接自建立起的总存活时间，与是否空闲无关。
      * <p>设得太小会在高 QPS 下周期性重建连接（重复 TCP/TLS 握手），只应作为
      * 让 DNS / 负载均衡变更逐步生效的手段；空闲连接的回收由 {@link #maxIdleTime} 负责。
      */
-    private Duration timeToLive = Duration.ofMinutes(5);
+    private Duration maxLifeTime = Duration.ofMinutes(5);
 
     /**
      * 连接空闲多久后被回收，须小于服务端 keepAlive。

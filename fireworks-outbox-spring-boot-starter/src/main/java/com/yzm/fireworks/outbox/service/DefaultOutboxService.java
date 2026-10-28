@@ -4,18 +4,21 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yzm.fireworks.outbox.api.OutboxAppendRequest;
 import com.yzm.fireworks.outbox.api.OutboxService;
+import com.yzm.fireworks.common.util.UuidUtil;
 import com.yzm.fireworks.outbox.domain.OutboxEvent;
+import com.yzm.fireworks.outbox.domain.OutboxEventStatus;
 import com.yzm.fireworks.outbox.exception.OutboxException;
 import com.yzm.fireworks.outbox.properties.OutboxProperties;
 import com.yzm.fireworks.outbox.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link OutboxService} 默认实现。
@@ -28,6 +31,11 @@ import java.util.UUID;
 @Slf4j
 @RequiredArgsConstructor
 public class DefaultOutboxService implements OutboxService {
+
+    /**
+     * "未在事务中调用"的提示只打印一次：每条消息打一条会把日志刷爆。
+     */
+    private static final AtomicBoolean TX_WARNED = new AtomicBoolean();
 
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
@@ -53,8 +61,9 @@ public class DefaultOutboxService implements OutboxService {
         Assert.notNull(request, "OutboxAppendRequest 不能为空");
         Assert.hasText(request.getEventType(), "outbox eventType 不能为空");
         Assert.notNull(request.getPayload(), "outbox payload 不能为空");
+        warnIfNoTransaction();
 
-        String eventId = UUID.randomUUID().toString().replace("-", "");
+        String eventId = UuidUtil.uuid32();
         Instant now = Instant.now();
 
         OutboxEvent event = OutboxEvent.builder()
@@ -63,7 +72,7 @@ public class DefaultOutboxService implements OutboxService {
                 .entityType(request.getEntityType())
                 .entityId(request.getEntityId())
                 .payload(toJson(request.getPayload()))
-                .status(10)
+                .status(OutboxEventStatus.PENDING.getCode())
                 .retryCount(0)
                 .maxRetryCount(request.getMaxRetryCount() != null
                         ? request.getMaxRetryCount()
@@ -78,6 +87,18 @@ public class DefaultOutboxService implements OutboxService {
         log.debug("[Outbox] 已追加事件 eventId={}, eventType={}, entityType={}, entityId={}",
                 eventId, event.getEventType(), event.getEntityType(), event.getEntityId());
         return eventId;
+    }
+
+    /**
+     * outbox 的唯一正确性前提是"事件与业务写在同一本地事务"；缺事务时事件会独立提交，
+     * 业务回滚而消息仍投递。启动期无法判断，只能在首次调用时提示一次（不阻断，
+     * 避免"只发消息"的特殊场景被误伤）。
+     */
+    private static void warnIfNoTransaction() {
+        if (!TransactionSynchronizationManager.isActualTransactionActive() && TX_WARNED.compareAndSet(false, true)) {
+            log.warn("[Outbox] append() 未在事务中调用：事件会独立提交，业务回滚时消息仍会投递。"
+                    + "请与业务写放在同一个 @Transactional 内（本提示只打印一次）");
+        }
     }
 
     /**

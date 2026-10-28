@@ -2,32 +2,26 @@
 
 业务操作日志组件，基于注解 + SpEL 表达式记录操作日志。
 
-源码移植自 [mzt-biz-log](https://github.com/mouzt/mzt-biz-log)（Apache-2.0），
-原项目长期停更，故拷贝源码至本项目自行维护，做了如下定制：
+基于 [mzt-biz-log](https://github.com/mouzt/mzt-biz-log)（Apache-2.0）维护，与本框架的求值内核、日志模型保持统一：
 
-- 移除 `java-object-diff`（2015 年后停更）依赖，去掉 `diff` 能力
-- 移除 `log4j` 工具类依赖，改用 JDK / Spring 工具类
-- 兼容 Jakarta EE（Spring Boot 3）
-- 包路径调整为 `com.yzm.fireworks.oplog`
-- `LogRecord.createdAt` 改用 `Instant`，`id` 改用 `Long`
-- 占位符改为 Spring 原生 `#{表达式}`，由 `TemplateParserContext` 切分与求值，
-  与 `@Value`、`@ConditionalOnExpression` 语法一致；同时移除 `IFunctionService`
-  等自建函数注册表，函数调用回归 SpEL 原生 `@beanName.method(...)`
-- 框架保留变量改名为 `#_result` / `#_exception`，与 common 的
-  `SpelEvaluator` 统一；移除 `#args`，方法参数统一用 `#参数名` / `#a0` / `#p0`
-- 条件类表达式改为按布尔语义求值，不再依赖字符串后缀匹配 `true` / `false`
-- 求值层保留原始类型（`render` 返回 `Object`），单表达式返回对象本身、
-  混排模板返回字符串，使 `operator` 可直接返回 `Operator` 对象
-- 操作人表达式指定后不再调用 `IOperatorGetService`，避免重复查询
-- SpEL 求值能力下沉至 common 的 `com.yzm.fireworks.common.expression`，
-  与分布式锁、文件确认等模块共用同一套带缓存的求值内核
+- 占位符使用 Spring 原生 `#{表达式}`，由 `TemplateParserContext` 切分与求值，语法与
+  `@Value`、`@ConditionalOnExpression` 一致
+- 函数调用走 SpEL 原生 `@beanName.method(...)`，不提供自建函数注册表
+- 保留变量：`#_result` / `#_exception`；方法参数用 `#参数名` / `#a0` / `#p0`
+- 条件表达式按布尔语义求值
+- 求值层保留原始类型（`render` 返回 `Object`）：单表达式返回对象本身、混排模板返回字符串，
+  因此 `operator` 可以直接返回 `Operator`
+- 指定 `operator` 表达式时直接采用其结果，不再查询 `IOperatorGetService`
+- SpEL 求值内核位于 common 的 `com.yzm.fireworks.common.expression`，与分布式锁、文件确认等模块共用
 
 ## 快速开始
 
-```java
-@EnableLogRecord(tenant = "fireworks")
-@SpringBootApplication
-public class Application { }
+引入依赖即生效，**不需要任何 `@EnableXxx` 注解**，全部配置走 `fireworks.oplog.*`：
+
+```yaml
+fireworks:
+  oplog:
+    tenant: fireworks     # 租户/应用标识，写入每条日志
 ```
 
 ## 使用示例
@@ -145,21 +139,11 @@ public boolean update(User user) {
 ```yaml
 fireworks:
   oplog:
-    record:
-      # 是否跳过"未真正渲染"的日志
-      # false（默认）：模板含 #{} 占位符、但渲染结果与模板原文完全相同时，跳过记录
-      # true：不做此判断，一律记录
-      skip-unrendered-log: false
+    enabled: true                  # 模块开关
+    tenant: ""                     # 租户/应用标识，写入每条日志
+    order: 2147483647              # advisor 优先级（Ordered.LOWEST_PRECEDENCE）
+    join-transaction: false        # 日志与业务是否同一事务
 ```
 
-## 开关注解属性
-
-```java
-@EnableLogRecord(
-    tenant = "fireworks",       // 租户/应用标识（必填）
-    proxyTargetClass = false,   // 是否强制 CGLIB 代理
-    mode = AdviceMode.PROXY,    // 代理方式
-    joinTransaction = false,    // 日志与业务是否同一事务
-    order = Ordered.LOWEST_PRECEDENCE  // 切面优先级
-)
-```
+> 全部配置都在 `fireworks.oplog.*`，不需要 `@EnableXxx` 注解：注解形式的属性无法被
+> `spring-configuration-metadata` 发现，也就没有 IDE 提示与校验。

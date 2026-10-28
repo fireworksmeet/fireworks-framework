@@ -87,9 +87,9 @@ cosid:
           update cosid set last_max_id = last_max_id + ?,
           last_fetch_time = extract(epoch from now())::bigint where name = ?
     provider:
-      # offset 必须【大于】迁移前 Leaf 表的 max_id（推荐 max_id + 1）：宁可跳一个号，也绝不能重号
+      # offset 必须【大于】历史已发放的最大编号（推荐 max_id + 1）：宁可跳一个号，也绝不能重号
       ORDER:
-        offset: 131949450911              # 原 Leaf max_id = 131949450910
+        offset: 131949450911              # 历史最大编号 = 131949450910
         step: 5000
       MEMBER:
         offset: 908536683                 # 原 Leaf max_id = 908536682
@@ -126,7 +126,7 @@ cosid:
 另外三条经验：
 
 - **不要从 0 / 1 开始**：位数不确定，且极易与历史数据或其它系统的编号混淆
-- **迁移场景**：`offset` 必须**大于**历史 `max_id`（宁可跳号，绝不重号）
+- **起点约束**：`offset` 必须**大于**历史已发放的最大编号（宁可跳号，绝不重号）
 - **`step` 与抖动**：`step` 越大数据库往返越少，但多实例之间的乱序越明显（推荐 1000 ~ 10000）
 
 **号段链是默认实现**：`cosid.segment.mode` 默认就是 `chain`（SegmentChainId），**无需配置**。
@@ -229,7 +229,6 @@ String no    = IdUtil.getIdAsString("ORDER");      // 字符串形态：默认 r
 long serial  = IdUtil.getId("SERIAL_NUMBER");      // 业务标识
 long traceId = IdUtil.getShareId();                // 无业务标识：技术 ID（共享生成器，见下）
 String trcNo = IdUtil.getShareIdAsString();        // 同上，字符串形态（默认 radix62 定长 11 位）
-String uuid  = IdUtil.getUUID();                   // UUID v4：32 位紧凑格式（无连字符，随机无序）
 ```
 
 **业务标识是字符串，由使用方自己定义**（枚举 / 常量类皆可，值需与 CosId 的 provider 配置名一致）——
@@ -249,8 +248,7 @@ String uuid  = IdUtil.getUUID();                   // UUID v4：32 位紧凑格�
 
 > 两种模式都**不要把 ID 当作「连续编号」使用**；确需连号的场景请另建数据库序列。
 
-**失败语义**（与旧 Leaf 集成的关键差别）：旧实现的 `SegmentService` 取不到 Bean 时会**静默返回 `-1`**，
-而 `-1` 会被写进订单号、会员号等业务数据。现在一律 fail-fast：
+**失败语义**：取不到业务标识时一律 fail-fast，**不会**返回 `-1` 这类哨兵值（它会被写进订单号、会员号等业务数据）：
 
 ```
 未声明业务标识 [ORDER]：号段模式请在 cosid.segment.provider 下声明，雪花模式请在 cosid.snowflake.provider 下声明（当前已注册：MEMBER, SERIAL_NUMBER）
@@ -285,13 +283,12 @@ String traceNo = IdUtil.getShareIdAsString();   // 字符串形态：默认 radi
 > 为什么它能当“全局号源”：CosId 官方要求同一应用最多一个共享生成器，这与本框架的「两种模式互斥」正好一致。
 > 被显式关闭（`share.enabled: false`）时它会 fail-fast 并提示开关名，不会静默返回哨兵值。
 
-## 迁移注意事项（号段模式从 Leaf 切过来）
+## 号段起点（offset）
 
-1. **offset 必须 > 原 `T_LEAF_ALLOC.max_id`**：否则新号与历史号重叠，这是唯一会导致数据事故的点。
-2. **切换窗口内 Leaf 不能还在发放**：老实例用 Leaf、新实例用 CosId 会各自发号 → 重号。**必须停机切换，不可灰度并存**。
-3. **一旦生成过新号就不能回退**到 Leaf（号段会重叠）。
-4. 旧表 `T_LEAF_ALLOC` 在切换完成后可保留一段时间用于对账，再清理。
-5. 雪花模式**不适用**上述 `offset` 衔接：它的 ID 与历史号没有可比性，若已有历史业务编号，只能继续用号段模式。
+1. **offset 必须大于历史已发放的最大编号**：否则新号与历史号重叠，这是唯一会导致数据事故的点。
+2. **同一业务编号只能有一个发号方**：新旧两套发号并存会各自发号 → 重号；切换必须停机，不能灰度并存。
+3. **offset 一旦投入使用就不能回退**到更小的值（号段会重叠）。
+4. 雪花模式不适用 `offset` 衔接：它的 ID 与历史号没有可比性，若已有历史业务编号，继续用号段模式。
 
 ## 模块结构
 
@@ -328,7 +325,7 @@ fireworks-id-spring-boot-starter/
 - `me.ahoo.cosid:cosid-jdbc`——JDBC **号段**分发器。在 CosId starter 中是 `optional`，**必须显式引入**
 - 雪花模式的机器号分发：`stateful_set` 无需额外依赖（实现在 CosId 核心包内）；
   `redis` 的适配包 `cosid-spring-redis` **已随本 starter 引入**（只需应用侧有 `StringRedisTemplate`）
-- 不再引入 Leaf（连带 mysql 驱动、mybatis、mybatis-spring、guava/jackson 硬编码版本、perf4j 一起消失）
+- 不依赖 Leaf：无需 mysql 驱动、mybatis、mybatis-spring、guava/jackson 与 perf4j
 - **不依赖 `fireworks-common`**：静态 API 所需的 `IdGeneratorProvider` 由本模块的 `IdAutoConfiguration` 自行绑定
 
 ## 为什么号段模式用 JDBC 分发器而不是 Redis

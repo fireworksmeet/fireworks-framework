@@ -3,13 +3,12 @@ package com.yzm.fireworks.common.util;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.DisposableBean;
+import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -20,14 +19,15 @@ import java.util.Map;
 /**
  * Spring 应用上下文持有者与工具类
  * <p>
- * 【注册方式】由 {@code CommonAutoConfiguration} 通过 {@code @Import} 显式注册，
+ * 【注册方式】由 {@code CommonAutoConfiguration} 以 {@code @Bean} 注册，容器通过<b>构造器</b>
+ * 把 {@link ApplicationContext} 传进来（不实现 {@code ApplicationContextAware}）。
  * 因此**刻意不标注 {@code @Component}**：框架类不在业务应用的组件扫描范围内，
  * 若同时依赖扫描会导致同一类产生两个 Bean（Bean 名不同：类全名 vs 首字母小写类名）。
  *
  * @author JYuan
  */
 @Slf4j
-public class SpringContextHolder implements ApplicationContextAware, DisposableBean {
+public class SpringContextHolder {
 
     /**
      * -- GETTER --
@@ -35,6 +35,13 @@ public class SpringContextHolder implements ApplicationContextAware, DisposableB
      */
     @Getter
     private static ApplicationContext applicationContext;
+
+    /**
+     * 由 {@code CommonAutoConfiguration} 构造注入；静态方法据此定位容器。
+     */
+    public SpringContextHolder(ApplicationContext applicationContext) {
+        SpringContextHolder.applicationContext = applicationContext;
+    }
 
     /**
      * 检查 ApplicationContext 是否已成功初始化
@@ -203,12 +210,7 @@ public class SpringContextHolder implements ApplicationContextAware, DisposableB
     //  4. 生命周期感知与清理
     // ─────────────────────────────────────────────────────────────
 
-    @Override
-    public void setApplicationContext(ApplicationContext context) throws BeansException {
-        SpringContextHolder.applicationContext = context;
-    }
-
-    @Override
+    @PreDestroy
     public void destroy() {
         SpringContextHolder.clearHolder();
     }

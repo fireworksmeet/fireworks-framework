@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "fireworks.security.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用默认安全过滤链与方法级安全（默认开启）。"
+    }
+  ]
+}

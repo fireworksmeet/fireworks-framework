@@ -1,0 +1,22 @@
+{
+  "properties": [
+    {
+      "name": "fireworks.outbox.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用 Outbox 自动配置（默认开启）。"
+    },
+    {
+      "name": "fireworks.outbox.worker.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启动投递 Worker（关闭后事件只入库、不投递，可用于测试或灰度）。"
+    },
+    {
+      "name": "fireworks.outbox.recovery.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用 PROCESSING 超时恢复。"
+    }
+  ]
+}

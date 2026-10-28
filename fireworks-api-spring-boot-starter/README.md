@@ -105,13 +105,13 @@ fireworks:
 
 ### 6. 校验器
 
-默认注册 fail-fast 的 Hibernate Validator（`fireworks.api.validator.enabled=false` 可关闭）：
+默认注册 fail-fast 的 Hibernate Validator（`fireworks.api.validator.fail-fast=false` 可关闭）：
 
 ```yaml
 fireworks:
   api:
     validator:
-      enabled: true
+      fail-fast: true
 ```
 
 ## 核心类速览

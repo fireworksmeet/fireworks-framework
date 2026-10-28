@@ -6,7 +6,6 @@ import com.yzm.fireworks.common.enums.ExceptionStatus;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.catalina.connector.ClientAbortException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.util.ObjectUtils;
@@ -143,17 +142,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 客户端主动断开连接（用户取消、网络中断）：非服务端故障，用 WARN 观察
-     */
-    @ExceptionHandler(ClientAbortException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Result<?> handleIgnoreRequestException(Exception e) {
-        log.warn("ClientAbortException:", e);
-        // 客户端已断开，响应不会被读取；返回固定文案，避免把内部异常信息写入响应体
-        return Result.error(SERVER_ERROR);
-    }
-
-    /**
      * 请求方法不支持：客户端错误，WARN 且不打印堆栈
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -259,7 +247,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<?> handleException(Exception e) {
+        // 客户端主动断开（用户取消、网络中断）：不是服务端故障，不能算 5xx，也不打堆栈。
+        // 按类名判断而不是 @ExceptionHandler(Tomcat 的异常类)：换 Jetty/Undertow 时类不存在，
+        // 注解会在启动期直接 NoClassDefFoundError。
+        if (isClientAbort(e)) {
+            log.debug("客户端已断开连接: {}", e.getMessage());
+            return Result.error(SERVER_ERROR);
+        }
         log.error("Unhandled Exception:", e);
         return Result.error(SERVER_ERROR.getCode(), "系统繁忙，请稍后再试");
+    }
+
+    private static boolean isClientAbort(Throwable throwable) {
+        for (Throwable current = throwable; current != null; current = current.getCause()) {
+            if ("org.apache.catalina.connector.ClientAbortException".equals(current.getClass().getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

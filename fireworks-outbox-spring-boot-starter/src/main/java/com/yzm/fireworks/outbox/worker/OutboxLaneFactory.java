@@ -16,8 +16,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 /**
  * 根据配置构造投递道。
  * <p>
- * 规则：默认道负责所有「未分道」的类型；每个 {@code lanes} 配置项一个道。
- * 道名重复、事件类型重复分道、{@code event-types} 为空都会在启动期失败。
+ * 规则：兜底道负责所有「未分道」的类型；每个 {@code lanes} 配置项一个道。
+ * 道名重复（含占用保留名 {@code default}）、事件类型重复分道、{@code event-types} 为空都会在启动期失败。
  *
  * @author JYuan
  */
@@ -36,6 +36,8 @@ public final class OutboxLaneFactory {
 
         for (OutboxProperties.Lane lane : properties.getLanes()) {
             Assert.hasText(lane.getName(), "fireworks.outbox.lanes 存在未命名的道");
+            Assert.isTrue(!OutboxLane.DEFAULT_LANE_NAME.equals(lane.getName()),
+                    () -> "道名 '" + OutboxLane.DEFAULT_LANE_NAME + "' 由框架保留（兜底道），请改用其它名称");
             Assert.isTrue(laneNames.add(lane.getName()), () -> "道名重复: " + lane.getName());
             Assert.notEmpty(lane.getEventTypes(), () -> "道 " + lane.getName() + " 未配置 event-types");
             for (String eventType : lane.getEventTypes()) {
@@ -44,12 +46,12 @@ public final class OutboxLaneFactory {
         }
 
         List<OutboxLane> lanes = new ArrayList<>();
-        // 默认道：领取所有「未分道」的类型
-        lanes.add(new OutboxLane("default",
+        // 兜底道：领取所有「未分道」的类型
+        lanes.add(new OutboxLane(OutboxLane.DEFAULT_LANE_NAME,
                 Math.max(worker.getBatchSize(), 1),
                 List.of(),
                 List.copyOf(assignedTypes),
-                executor("outbox-worker-",
+                executor("outbox-worker-" + OutboxLane.DEFAULT_LANE_NAME + "-",
                         Math.max(worker.getMaxConcurrency(), 1),
                         Math.max(worker.getQueueCapacity(), 1), worker, taskDecorator)));
 

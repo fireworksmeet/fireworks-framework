@@ -39,11 +39,6 @@ import java.util.List;
 public class TokenProperties {
 
     /**
-     * 是否启用令牌模块；关闭时不装配任何 Bean
-     */
-    private boolean enabled = true;
-
-    /**
      * 签发方；写入并校验 JWT 的 iss 声明。使用 JWT 时必填
      */
     private String issuer;

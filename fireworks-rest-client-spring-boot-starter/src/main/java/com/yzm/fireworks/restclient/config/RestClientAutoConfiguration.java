@@ -7,6 +7,7 @@ import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.http.client.ClientHttpRequestFactoryBuilderCustomizer;
 import org.springframework.boot.autoconfigure.web.client.RestClientBuilderConfigurer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -43,6 +44,7 @@ import java.time.Duration;
 @Slf4j
 @AutoConfiguration
 @EnableConfigurationProperties(RestClientProperties.class)
+@ConditionalOnProperty(prefix = "fireworks.rest-client", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class RestClientAutoConfiguration {
 
     public static final String LOAD_BALANCE_REST_CLIENT_BUILDER = "loadBalancedRestClientBuilder";
@@ -68,10 +70,10 @@ public class RestClientAutoConfiguration {
     public ClientHttpRequestFactoryBuilderCustomizer<ClientHttpRequestFactoryBuilder<?>> fireworksHttpClientCustomizer(
             RestClientProperties props, ClientHttpRequestFactorySettings settings) {
 
-        log.info("[RestClient] HttpClient5 池化 — maxConnTotal={}, maxConnPerRoute={}, "
-                        + "connectionRequestTimeout={}, timeToLive={}, maxIdleTime={}, validateAfterInactivity={}",
-                props.getMaxConnTotal(), props.getMaxConnPerRoute(), props.getConnectionRequestTimeout(),
-                props.getTimeToLive(), props.getMaxIdleTime(), props.getValidateAfterInactivity());
+        log.info("[RestClient] HttpClient5 池化 — maxConnections={}, maxConnectionsPerRoute={}, "
+                        + "acquireTimeout={}, maxLifeTime={}, maxIdleTime={}, validateAfterInactivity={}",
+                props.getMaxConnections(), props.getMaxConnectionsPerRoute(), props.getAcquireTimeout(),
+                props.getMaxLifeTime(), props.getMaxIdleTime(), props.getValidateAfterInactivity());
 
         return builder -> {
             if (!(builder instanceof HttpComponentsClientHttpRequestFactoryBuilder http)) {
@@ -80,14 +82,14 @@ public class RestClientAutoConfiguration {
                 return builder;
             }
             http.withConnectionManagerCustomizer(manager -> manager
-                            .setMaxConnTotal(props.getMaxConnTotal())
-                            .setMaxConnPerRoute(props.getMaxConnPerRoute()))
+                            .setMaxConnTotal(props.getMaxConnections())
+                            .setMaxConnPerRoute(props.getMaxConnectionsPerRoute()))
                     .withConnectionConfigCustomizer(connection -> connection
                             // 连接超时属于 ConnectionConfig；factory.setConnectTimeout 自 6.2.13 起已废弃
                             .setConnectTimeout(Timeout.ofMilliseconds(
                                     (settings.connectTimeout() != null
                                             ? settings.connectTimeout() : FALLBACK_CONNECT_TIMEOUT).toMillis()))
-                            .setTimeToLive(TimeValue.ofMilliseconds(props.getTimeToLive().toMillis()))
+                            .setTimeToLive(TimeValue.ofMilliseconds(props.getMaxLifeTime().toMillis()))
                             .setValidateAfterInactivity(
                                     TimeValue.ofMilliseconds(props.getValidateAfterInactivity().toMillis())))
                     .withHttpClientCustomizer(client -> client
@@ -95,7 +97,7 @@ public class RestClientAutoConfiguration {
                             .evictIdleConnections(TimeValue.ofMilliseconds(props.getMaxIdleTime().toMillis())))
                     .withCustomizer(factory -> {
                         // 设在 factory 上才会进入每个请求的 RequestConfig；设在 client 默认值上会被 Spring 覆盖
-                        factory.setConnectionRequestTimeout(props.getConnectionRequestTimeout());
+                        factory.setConnectionRequestTimeout(props.getAcquireTimeout());
                         if (settings.readTimeout() == null) {
                             factory.setReadTimeout(FALLBACK_READ_TIMEOUT);
                         }

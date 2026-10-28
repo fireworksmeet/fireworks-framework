@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.http.client.reactive.ClientHttpConnectorBuilderCustomizer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.http.client.reactive.ClientHttpConnectorBuilder;
@@ -46,6 +47,7 @@ import java.time.Duration;
 @Slf4j
 @AutoConfiguration
 @EnableConfigurationProperties(WebClientProperties.class)
+@ConditionalOnProperty(prefix = "fireworks.webflux-client", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class WebClientAutoConfiguration {
 
     public static final String LOAD_BALANCE_WEB_CLIENT_BUILDER = "loadBalancedWebClientBuilder";
@@ -63,7 +65,7 @@ public class WebClientAutoConfiguration {
     /**
      * 共享连接池；业务自定义同类型 Bean 时让位。
      */
-    @Bean
+    @Bean(destroyMethod = "dispose")   // 连接池由框架创建，关停时必须释放，否则池内连接与驱逐线程残留
     @ConditionalOnMissingBean
     public ConnectionProvider connectionProvider(WebClientProperties props, ClientHttpConnectorSettings settings) {
         ConnectionProvider provider = ConnectionProvider.builder("fireworks-webflux-pool")

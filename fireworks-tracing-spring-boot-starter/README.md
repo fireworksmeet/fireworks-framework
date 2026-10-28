@@ -71,6 +71,7 @@ accessor。当前 classpath 上唯一自动注册的 accessor 是 `ObservationTh
 
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
+| `fireworks.tracing.enabled` | `true` | 本模块自动装配开关；关闭后不注册 `TaskDecorator` 与启动诊断 |
 | `logging.pattern.correlation` | `[%X{traceId:-},%X{spanId:-}]`（本模块注入） | 日志关联段；换追踪实现时改这里对齐键名 |
 | `management.tracing.enabled` | `true` | 总开关；关闭后日志中不再出现 traceId |
 | `management.tracing.sampling.probability` | `0.1`（Boot 默认） | 采样率；只影响 span 是否上报，**无 exporter 时无意义** |

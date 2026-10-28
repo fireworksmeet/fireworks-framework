@@ -1,14 +1,19 @@
 package com.yzm.fireworks.redis;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.InitializingBean;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -31,7 +36,7 @@ import static com.yzm.fireworks.common.constants.StringPool.COLON;
  *     executor.submit(() -> RedisUtil.on(ds).set("user:1", user));
  * </pre>
  *
- * <p>Spring 完成依赖注入后，{@code afterPropertiesSet()} 将实例赋给静态字段 {@code INSTANCE}，
+ * <p>Spring 完成依赖注入后，{@code @PostConstruct} 初始化方法将实例赋给静态字段 {@code INSTANCE}，
  * 所有静态方法通过 {@code INSTANCE} 委托调用，保持静态调用体验，同时遵循 Spring 生命周期。
  *
  * <p><b>不是纯工具类</b>：本类持有实例状态（{@link RedisContext} 等），因此不使用 {@code @UtilityClass}。
@@ -39,8 +44,7 @@ import static com.yzm.fireworks.common.constants.StringPool.COLON;
  *
  * @author JYuan
  */
-@Slf4j
-public class RedisUtil implements InitializingBean {
+public class RedisUtil {
 
     // ── 静态持有者 ─────────────────────────────────────────────────────────────
     private static RedisUtil INSTANCE;
@@ -48,14 +52,6 @@ public class RedisUtil implements InitializingBean {
     // ── 实例字段（构造器注入）────────────────────────────────────────────────────
     private final RedisContext defaultContext;
     private final Map<String, RedisContext> contextMap;
-
-    /**
-     * 单数据源构造器（多数据源未开启时使用）
-     */
-    public RedisUtil(JsonRedisTemplate jsonRedisTemplate, StringRedisTemplate stringRedisTemplate) {
-        this.defaultContext = new RedisContext(jsonRedisTemplate, stringRedisTemplate);
-        this.contextMap = Collections.emptyMap();
-    }
 
     /**
      * 多数据源构造器
@@ -68,9 +64,22 @@ public class RedisUtil implements InitializingBean {
         this.contextMap = contextMap;
     }
 
-    @Override
-    public void afterPropertiesSet() {
+    @PostConstruct
+    public void init() {
         INSTANCE = this;
+    }
+
+    /**
+     * 容器关闭时清空静态引用。
+     *
+     * <p>不清空的话，静态方法会继续指向已销毁的 {@link RedisContext}（DevTools 重启、测试多上下文时
+     * 尤其明显），报错信息也不好定位。判等是为了避免旧容器的销毁把新容器的实例清掉。
+     */
+    @PreDestroy
+    public void destroy() {
+        if (INSTANCE == this) {
+            INSTANCE = null;
+        }
     }
 
     // ── 多数据源切换 ────────────────────────────────────────────────────────────
@@ -84,18 +93,15 @@ public class RedisUtil implements InitializingBean {
      *     executor.submit(() -> ctx.set("key:1", value));
      * </pre>
      *
-     * @param datasource 数据源名称，对应配置文件中 {@code spring.data.redis.multi.datasource} 下的 key
+     * @param datasource 数据源名称，对应配置文件中 {@code fireworks.redis.multi.datasource} 下的 key
      * @throws IllegalArgumentException 数据源名称不存在时抛出
      * @throws IllegalStateException    多数据源未开启时调用此方法时抛出
      */
     public static RedisContext on(String datasource) {
         Map<String, RedisContext> map = instance().contextMap;
         Assert.state(!map.isEmpty(), "Multi-datasource is not enabled. " +
-                "Please set spring.data.redis.multi.enabled=true");
-        RedisContext ctx = map.get(datasource);
-        Assert.notNull(ctx, "Redis datasource '" + datasource + "' not found. " +
-                "Available: " + map.keySet());
-        return ctx;
+                "Please set fireworks.redis.multi.enabled=true");
+        return RedisLookup.require(map, datasource, "Redis datasource");
     }
 
     // ── 模板访问 ────────────────────────────────────────────────────────────────
@@ -614,8 +620,9 @@ public class RedisUtil implements InitializingBean {
     /**
      * 校验 Redis key 是否符合 {@code namespace:name} 约定（必须包含 {@code :}）。
      * <p>
-     * 规则只在这里定义一次：{@link RedisContext} 在每次读写前校验；只接收 key、不直接操作 Redis 的
-     * 组件（如限流器）在构造请求时校验。无状态，不依赖 {@link #INSTANCE}。
+     * 规则只在这里定义一次：{@link RedisContext} 在<b>写路径</b>校验（读路径不校验——读错 key 不会产生
+     * 脏数据，也避免每次读多一次字符串判断）；只接收 key、不直接操作 Redis 的组件（如限流器）在
+     * 构造请求时校验。无状态，不依赖 {@link #INSTANCE}。
      *
      * @param key Redis key
      * @throws IllegalArgumentException key 为空白或不含 {@code :}

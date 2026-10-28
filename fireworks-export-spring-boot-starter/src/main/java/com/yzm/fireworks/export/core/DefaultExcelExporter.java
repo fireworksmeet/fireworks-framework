@@ -59,7 +59,10 @@ public class DefaultExcelExporter implements ExcelExporter {
     public <Q> void exportToStream(OutputStream outputStream, ExportContext<Q> context, ExcelDataProvider<Q> dataProvider) {
         validateContext(context);
         Assert.notNull(outputStream, "输出流不能为 null");
-        write(EasyExcel.write(outputStream, context.getDataClass()), context, dataProvider);
+        // autoCloseStream(false)：流由调用方管理。默认 true 会在导出结束时关闭调用方的流，
+        // 导致「导出后继续写 ZipOutputStream / 继续追加内容」的用法直接报错
+        write(EasyExcel.write(outputStream, context.getDataClass()).autoCloseStream(false),
+                context, dataProvider);
     }
 
     @Override

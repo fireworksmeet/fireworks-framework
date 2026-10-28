@@ -3,6 +3,7 @@ package com.yzm.fireworks.outbox.worker;
 import com.yzm.fireworks.common.util.ThreadPoolUtil;
 import com.yzm.fireworks.outbox.domain.OutboxEvent;
 import com.yzm.fireworks.outbox.properties.OutboxProperties;
+import com.yzm.fireworks.common.util.UuidUtil;
 import com.yzm.fireworks.outbox.repository.OutboxEventRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.SmartLifecycle;
@@ -14,7 +15,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -134,8 +134,8 @@ public class OutboxWorker implements SmartLifecycle {
         for (OutboxLane lane : lanes) {
             try {
                 poll(lane);
-            } catch (Throwable e) {
-                // 单个道异常不能影响其它道
+            } catch (Exception e) {
+                // 单个道异常不能影响其它道；Error（OOM 等）不吞，交给线程池默认处理
                 log.error("[Outbox] 轮询异常 lane={}，已忽略本次", lane.name(), e);
             }
         }
@@ -198,8 +198,7 @@ public class OutboxWorker implements SmartLifecycle {
         } catch (UnknownHostException e) {
             host = UNKNOWN;
         }
-        String workerId = applicationName + "-" + host + "-"
-                + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String workerId = applicationName + "-" + host + "-" + UuidUtil.shortUuid(8);
         return workerId.length() > WORKER_ID_MAX_LENGTH
                 ? workerId.substring(0, WORKER_ID_MAX_LENGTH)
                 : workerId;

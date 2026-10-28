@@ -11,7 +11,7 @@
 | 连接池容量、排队、生命周期、空闲回收 | `fireworks.webflux-client.*` | Boot 不提供，由本模块补齐 |
 | 负载均衡 | `@LoadBalanced WebClient.Builder` | Spring Cloud LoadBalancer |
 
-> 本模块**不再**自建 `HttpClient` / `ReactorClientHttpConnector`。Boot 的 `ClientHttpConnectorAutoConfiguration` 会先按 `spring.http.reactiveclient.*` 建好 connector，再应用所有 `ClientHttpConnectorBuilderCustomizer`；替换 connector 会让官方属性整体静默失效。
+> 本模块**不自建** `HttpClient` / `ReactorClientHttpConnector`，只通过 `ClientHttpConnectorBuilderCustomizer` 追加池化参数。Boot 的 `ClientHttpConnectorAutoConfiguration` 会先按 `spring.http.reactiveclient.*` 建好 connector，再应用所有 `ClientHttpConnectorBuilderCustomizer`；替换 connector 会让官方属性整体静默失效。
 
 ## 快速开始
 
@@ -38,10 +38,11 @@ spring:
 
 fireworks:
   webflux-client:
+    enabled: true                   # 模块开关；关闭后不注册任何客户端 Bean
     max-connections: 500            # 连接池上限
     pending-acquire-max-count: 1000 # 池满时允许排队的请求数，-1 为不限
     acquire-timeout: 1s             # 排队等待上限
-    max-life-time: 30m              # 连接自建立起的总存活时间
+    max-life-time: 5m               # 连接自建立起的总存活时间
     max-idle-time: 30s              # 空闲多久被回收
     evict-in-background: 60s        # 后台驱逐检查间隔
 ```

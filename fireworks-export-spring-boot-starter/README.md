@@ -189,6 +189,7 @@ ExportContext<...> context = ExportContext.<...>builder()
 ```yaml
 fireworks:
   export:
+    enabled: true        # 模块开关；关闭后不注册 ExcelExporter
     path: /data/export   # 本地临时文件目录，缺省使用 {java.io.tmpdir}/{spring.application.name}/export
     font-name: 宋体       # 导出字体，容器环境可按需改为 微软雅黑 / Arial 等
     font-size: 11        # 导出字号（磅）

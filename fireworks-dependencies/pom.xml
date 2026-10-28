@@ -183,7 +183,7 @@
             </dependency>
             <dependency>
                 <groupId>com.yzm.fireworks</groupId>
-                <artifactId>fireworks-msg-spring-boot-starter</artifactId>
+                <artifactId>fireworks-message-spring-boot-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>

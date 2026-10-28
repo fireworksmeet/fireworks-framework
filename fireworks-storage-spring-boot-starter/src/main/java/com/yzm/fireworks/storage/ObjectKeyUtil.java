@@ -1,13 +1,13 @@
 package com.yzm.fireworks.storage;
 
 import com.yzm.fireworks.common.constants.StringPool;
+import com.yzm.fireworks.common.util.UuidUtil;
 import lombok.experimental.UtilityClass;
 import org.springframework.util.Assert;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
@@ -82,7 +82,7 @@ public class ObjectKeyUtil {
     public static String buildDateKey(String bizPrefix, String originalFilename, LocalDate partitionDate) {
         Assert.notNull(partitionDate, "partitionDate 不能为空");
         String subPath = partitionDate.format(DATE_FORMATTER)
-                + StringPool.SLASH + uuid() + extensionSuffix(originalFilename);
+                + StringPool.SLASH + UuidUtil.uuid32() + extensionSuffix(originalFilename);
         return joinPrefix(bizPrefix, subPath);
     }
 
@@ -97,7 +97,7 @@ public class ObjectKeyUtil {
     public static String buildEntityKey(String bizPrefix, CharSequence entityId, String originalFilename) {
         Assert.notNull(entityId, "entityId 不能为空");
         Assert.hasText(entityId.toString(), "entityId 不能为空");
-        String subPath = entityId + StringPool.SLASH + uuid() + extensionSuffix(originalFilename);
+        String subPath = entityId + StringPool.SLASH + UuidUtil.uuid32() + extensionSuffix(originalFilename);
         return joinPrefix(bizPrefix, subPath);
     }
 
@@ -118,7 +118,7 @@ public class ObjectKeyUtil {
      * 例：{@code buildHashKey("upload", "a.jpg")} → {@code upload/3f/2a/3f2a...e91b.jpg}
      */
     public static String buildHashKey(String bizPrefix, String originalFilename) {
-        String id = uuid();
+        String id = UuidUtil.uuid32();
         String subPath = id.substring(0, 2) + StringPool.SLASH
                 + id.substring(2, 4) + StringPool.SLASH
                 + id + extensionSuffix(originalFilename);
@@ -210,13 +210,6 @@ public class ObjectKeyUtil {
         return cleanedPrefix.isEmpty()
                 ? normalizeObjectKey(subPath)
                 : normalizeObjectKey(cleanedPrefix + StringPool.SLASH + subPath);
-    }
-
-    /**
-     * 生成 32 位无连字符小写 UUID。
-     */
-    private static String uuid() {
-        return UUID.randomUUID().toString().replace(StringPool.HYPHEN, StringPool.EMPTY);
     }
 
     /**

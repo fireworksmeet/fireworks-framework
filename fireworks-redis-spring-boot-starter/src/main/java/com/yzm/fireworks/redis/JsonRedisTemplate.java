@@ -26,6 +26,8 @@ public class JsonRedisTemplate extends RedisTemplate<String, Object> {
         this.setHashKeySerializer(keySerializer);
         this.setHashValueSerializer(valueSerializer);
         this.setConnectionFactory(connectionFactory);
+        // 多数据源里是直接 new 出来的，不会经过容器回调，这里主动初始化；
+        // 作为 Bean 时容器会再调一次 afterPropertiesSet()，幂等无害
         this.afterPropertiesSet();
     }
 }

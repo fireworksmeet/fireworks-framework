@@ -9,6 +9,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.event.EventListener;
@@ -26,9 +27,9 @@ import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
  * 放在 common 的后果是：装饰器 Bean 存在，但 accessor 列表为空，异步任务什么也拿不到，
  * 属于“装了但不生效”的假能力。
  *
- * <p><b>关于条件判断</b>：{@code context-propagation} 与 {@code micrometer-tracing} 都是本模块的显式
- * 依赖，{@link ContextPropagatingTaskDecorator} 来自 spring-core，三者必然同时存在，因此这里不再做
- * {@code @ConditionalOnClass} 判断，只保留“容器中已存在 {@link TaskDecorator} 就让位”的语义。
+ * <p><b>关于条件判断</b>：本类直接引用了 {@link Tracer} 与 {@link SpanExporter} 两个类型，
+ * 因此 {@code @ConditionalOnClass} 必须**同时**包含它们——只判 {@code Tracer} 时，
+ * 业务用 brave bridge 或排除 OTel SDK 会让条件通过、类加载失败（报错与“追踪”无关，极难定位）。
  *
  * <p>启动诊断的作用：链路追踪属于典型的「静默失败」，日志格式里的 {@code %X{traceId:-}} 取不到值时只会
  * 渲染成空，不会有任何报错，业务方往往在排查问题时才后知后觉地发现整条链路上没有 traceId。
@@ -40,7 +41,8 @@ import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
  * @author JYuan
  */
 @AutoConfiguration
-@ConditionalOnClass(Tracer.class)
+@ConditionalOnClass({Tracer.class, SpanExporter.class})
+@ConditionalOnProperty(prefix = "fireworks.tracing", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class TracingAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(TracingAutoConfiguration.class);

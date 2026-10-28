@@ -1,5 +1,8 @@
 package com.yzm.fireworks.redis.ratelimit;
 
+import com.yzm.fireworks.common.ratelimit.RateLimitRequest;
+import com.yzm.fireworks.common.ratelimit.RateLimiter;
+import com.yzm.fireworks.redis.RedisUtil;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -49,6 +52,9 @@ public class GcraRateLimiter implements RateLimiter {
         if (request.limit() <= 0 || request.window() == null || request.window().isZero()) {
             return true;
         }
+        // key 会原样作为 Redis key 使用，格式约束由本实现负责（契约层不做校验）
+        RedisUtil.checkKey(request.key());
+        // GCRA 的最小时间粒度是 1ms，因此 limit/window 超过 1000/s 时实际被压到 1000/s
         long intervalMillis = Math.max(1, request.window().toMillis() / request.limit());
         Long result = redisTemplate.execute(
                 SCRIPT,

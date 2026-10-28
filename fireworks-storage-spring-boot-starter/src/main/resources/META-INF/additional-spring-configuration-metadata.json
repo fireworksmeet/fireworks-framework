@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "fireworks.storage.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用存储模块自动配置（默认开启）。"
+    }
+  ]
+}

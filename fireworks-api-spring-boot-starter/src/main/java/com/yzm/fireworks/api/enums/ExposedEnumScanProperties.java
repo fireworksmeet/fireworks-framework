@@ -16,11 +16,6 @@ import java.util.List;
 public class ExposedEnumScanProperties {
 
     /**
-     * 是否启用暴露枚举的自动扫描
-     */
-    private boolean enabled = false;
-
-    /**
      * 扫描包路径列表（可选）
      * <p>
      * 不配置时取启动类（{@code @SpringBootApplication}）所在包；需要扫描启动类包之外的位置时才显式指定：

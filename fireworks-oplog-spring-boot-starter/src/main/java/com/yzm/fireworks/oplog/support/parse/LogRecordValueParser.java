@@ -9,9 +9,7 @@ import com.yzm.fireworks.oplog.beans.Operator;
 import com.yzm.fireworks.oplog.context.LogRecordContext;
 import com.yzm.fireworks.oplog.service.IOperatorGetService;
 import lombok.Setter;
-import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.context.expression.AnnotatedElementKey;
 import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.expression.EvaluationContext;
@@ -38,22 +36,22 @@ import java.util.Map;
  *
  * @author mzt.
  */
-public class LogRecordValueParser extends SpelEvaluator implements BeanFactoryAware {
+public class LogRecordValueParser extends SpelEvaluator {
 
-    protected BeanFactory beanFactory;
+    /**
+     * 供 SpEL 的 {@code @beanName} 解析使用；由容器通过构造器注入（不实现 {@code BeanFactoryAware}）。
+     */
+    protected final BeanFactory beanFactory;
+
+    public LogRecordValueParser(BeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
+    }
 
     /**
      * 操作人获取服务，未指定 {@code operator} 表达式时用于取当前登录人
      */
     @Setter
     protected IOperatorGetService operatorGetService;
-
-    /**
-     * 是否跳过"未真正渲染"的日志
-     * <p>
-     * 由配置项 {@code fireworks.oplog.record.skip-unrendered-log} 注入。
-     */
-    protected boolean skipUnrenderedLog;
 
     /**
      * 批量求值模板
@@ -154,9 +152,8 @@ public class LogRecordValueParser extends SpelEvaluator implements BeanFactoryAw
                 getParameterNameDiscoverer(),
                 methodExecuteResult.getResult(),
                 methodExecuteResult.getThrowable());
-        if (beanFactory != null) {
-            context.setBeanResolver(new BeanFactoryResolver(beanFactory));
-        }
+        // 构造器注入后必然非 null，不需要再判空
+        context.setBeanResolver(new BeanFactoryResolver(beanFactory));
 
         // 业务变量优先级最高，最后注入以覆盖同名变量
         Map<String, Object> variables = LogRecordContext.getVariables();
@@ -173,11 +170,6 @@ public class LogRecordValueParser extends SpelEvaluator implements BeanFactoryAw
             }
         }
         return context;
-    }
-
-    @Override
-    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
-        this.beanFactory = beanFactory;
     }
 
 }

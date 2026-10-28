@@ -6,7 +6,6 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import org.springframework.util.Assert;
 
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -60,26 +59,6 @@ public class IdUtil {
      */
     static void bind(IdGeneratorProvider idGeneratorProvider) {
         provider = idGeneratorProvider;
-    }
-
-    /**
-     * 获取 <b>32 位紧凑格式</b>的 UUID（版本 4，<b>无连字符</b>），如
-     * {@code 1450421b6a4645cb8a203e498c6d6502}。
-     * <p>
-     * <b>为什么去连字符</b>：框架内 storage 的 {@code ObjectKeyUtil.uuid()}、export 的
-     * {@code ExportFileUtil.uuid()} 也生成随机标识，此前只有本方法带连字符——统一为紧凑格式，
-     * 避免同一框架出现两种 UUID 形态。值与标准形式完全一致，只是省略了分隔符。
-     * <p>
-     * <b>解析注意</b>：{@link UUID#fromString(String)} <b>不接受</b>这种无连字符写法
-     * （实测 JDK 21 抛 {@code IllegalArgumentException: Invalid UUID string}）；
-     * 需要反解时先按 {@code 8-4-4-4-12} 插入连字符，解析结果与紧凑形式的位完全一致。
-     * <p>
-     * 注意：UUID 不适用于订单号 / 会员号这类需要“短且趋势递增”的业务编号，
-     * 它只适合对索引局部性无要求的场景。若需要“唯一 + 有序”的标识（如链路追踪 ID），
-     * 优先用 {@link #getShareId()}——号段模式单实例自增、雪花模式时间有序，且无需声明业务标识。
-     */
-    public static String getUUID() {
-        return UUID.randomUUID().toString().replace("-", "");
     }
 
     /**

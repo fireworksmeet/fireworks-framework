@@ -43,7 +43,7 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
                  status, retry_count, max_retry_count, next_retry_at, trace_id, created_at, updated_at)
             VALUES
                 (:eventId, :eventType, :entityType, :entityId, :payload,
-                 10, 0, :maxRetryCount, :nextRetryAt, :traceId, :createdAt, :updatedAt)
+                 :pendingStatus, 0, :maxRetryCount, :nextRetryAt, :traceId, :createdAt, :updatedAt)
             """;
 
     /**
@@ -55,7 +55,7 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
                    payload, status, retry_count, max_retry_count, next_retry_at, claimed_at,
                    claimed_by, last_error, trace_id, created_at, updated_at, published_at
             FROM outbox_event
-            WHERE status = 10
+            WHERE status = :pendingStatus
               AND next_retry_at <= :now
             """;
 
@@ -70,30 +70,30 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
      */
     private static final String CLAIM_UPDATE_SQL = """
             UPDATE outbox_event
-            SET status = 20,
+            SET status = :processingStatus,
                 claimed_at = :claimedAt,
                 claimed_by = :workerId,
                 updated_at = :claimedAt
             WHERE id IN (:ids)
-              AND status = 10
+              AND status = :pendingStatus
             """;
 
     private static final String MARK_SUCCEEDED_SQL = """
             UPDATE outbox_event
-            SET status = 30,
+            SET status = :succeededStatus,
                 published_at = :now,
                 updated_at = :now,
                 last_error = NULL,
                 claimed_at = NULL,
                 claimed_by = NULL
             WHERE id = :id
-              AND status = 20
+              AND status = :processingStatus
               AND claimed_by = :workerId
             """;
 
     private static final String MARK_RETRY_SQL = """
             UPDATE outbox_event
-            SET status = 10,
+            SET status = :pendingStatus,
                 retry_count = retry_count + 1,
                 next_retry_at = :nextRetryAt,
                 claimed_at = NULL,
@@ -101,20 +101,20 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
                 last_error = :error,
                 updated_at = :now
             WHERE id = :id
-              AND status = 20
+              AND status = :processingStatus
               AND claimed_by = :workerId
             """;
 
     private static final String MARK_DEAD_SQL = """
             UPDATE outbox_event
-            SET status = 40,
+            SET status = :deadStatus,
                 retry_count = retry_count + 1,
                 claimed_at = NULL,
                 claimed_by = NULL,
                 last_error = :error,
                 updated_at = :now
             WHERE id = :id
-              AND status = 20
+              AND status = :processingStatus
               AND claimed_by = :workerId
             """;
 
@@ -123,17 +123,24 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
      * <p><b>恢复也计入一次重试</b>：否则进程反复崩溃（OOM、重启）时，同一行会被无限恢复、无限重投，
      * {@code max_retry_count} 形同虚设；达到上限的直接置 DEAD，让问题暴露出来。
      */
+    /**
+     * 与 {@link com.yzm.fireworks.outbox.retry.RetryDecision#shouldDead(int, int)} 等价的 SQL 条件。
+     * <p>两者无法在编译期共享：投递路径在 Java 里逐条判断，恢复路径是批量 UPDATE、只能在 SQL 里判断。
+     * <b>修改任一处必须同步另一处。</b>
+     */
+    private static final String DEAD_WHEN_EXHAUSTED = "retry_count + 1 >= max_retry_count";
+
     private static final String RECOVER_STALE_SQL = """
             UPDATE outbox_event
-            SET status = CASE WHEN retry_count + 1 >= max_retry_count THEN 40 ELSE 10 END,
+            SET status = CASE WHEN %s THEN :deadStatus ELSE :pendingStatus END,
                 retry_count = retry_count + 1,
                 claimed_at = NULL,
                 claimed_by = NULL,
                 next_retry_at = :now,
                 updated_at = :now
-            WHERE status = 20
+            WHERE status = :processingStatus
               AND claimed_at < :before
-            """;
+            """.formatted(DEAD_WHEN_EXHAUSTED);
 
     private static final RowMapper<OutboxEvent> ROW_MAPPER = (rs, rowNum) -> OutboxEvent.builder()
             .id(rs.getLong("id"))
@@ -166,7 +173,7 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
 
     @Override
     public void insert(OutboxEvent event) {
-        MapSqlParameterSource params = new MapSqlParameterSource()
+        MapSqlParameterSource params = statusParams()
                 .addValue("eventId", event.getEventId())
                 .addValue("eventType", event.getEventType())
                 .addValue("entityType", event.getEntityType())
@@ -185,7 +192,7 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
                                    Collection<String> includeTypes, Collection<String> excludeTypes) {
         Timestamp now = Timestamp.from(Instant.now());
         StringBuilder sql = new StringBuilder(CLAIM_SELECT_HEAD);
-        MapSqlParameterSource params = new MapSqlParameterSource("now", now).addValue("limit", limit);
+        MapSqlParameterSource params = statusParams().addValue("now", now).addValue("limit", limit);
         if (includeTypes != null && !includeTypes.isEmpty()) {
             sql.append("  AND event_type IN (:includeTypes)\n");
             params.addValue("includeTypes", includeTypes);
@@ -202,7 +209,7 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
                 return candidates;
             }
             List<Long> ids = candidates.stream().map(OutboxEvent::getId).toList();
-            jdbcTemplate.update(CLAIM_UPDATE_SQL, new MapSqlParameterSource()
+            jdbcTemplate.update(CLAIM_UPDATE_SQL, statusParams()
                     .addValue("ids", ids)
                     .addValue("workerId", workerId)
                     .addValue("claimedAt", now));
@@ -218,7 +225,7 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
 
     @Override
     public boolean markSucceeded(Long id, String workerId) {
-        return update(MARK_SUCCEEDED_SQL, new MapSqlParameterSource()
+        return update(MARK_SUCCEEDED_SQL, statusParams()
                 .addValue("id", id)
                 .addValue("workerId", workerId)
                 .addValue("now", Timestamp.from(Instant.now())));
@@ -226,7 +233,7 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
 
     @Override
     public boolean markRetry(Long id, String workerId, Instant nextRetryAt, String error) {
-        return update(MARK_RETRY_SQL, new MapSqlParameterSource()
+        return update(MARK_RETRY_SQL, statusParams()
                 .addValue("id", id)
                 .addValue("workerId", workerId)
                 .addValue("nextRetryAt", Timestamp.from(nextRetryAt))
@@ -236,7 +243,7 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
 
     @Override
     public boolean markDead(Long id, String workerId, String error) {
-        return update(MARK_DEAD_SQL, new MapSqlParameterSource()
+        return update(MARK_DEAD_SQL, statusParams()
                 .addValue("id", id)
                 .addValue("workerId", workerId)
                 .addValue("error", error)
@@ -246,9 +253,20 @@ public class JdbcOutboxEventRepository implements OutboxEventRepository {
     @Override
     public int recoverStale(Instant before) {
         Timestamp now = Timestamp.from(Instant.now());
-        return jdbcTemplate.update(RECOVER_STALE_SQL, new MapSqlParameterSource()
+        return jdbcTemplate.update(RECOVER_STALE_SQL, statusParams()
                 .addValue("before", Timestamp.from(before))
                 .addValue("now", now));
+    }
+
+    /**
+     * 状态码统一取自 {@link OutboxEventStatus}，SQL 里不再出现 10 / 20 / 30 / 40 字面量。
+     */
+    private static MapSqlParameterSource statusParams() {
+        return new MapSqlParameterSource()
+                .addValue("pendingStatus", OutboxEventStatus.PENDING.getCode())
+                .addValue("processingStatus", OutboxEventStatus.PROCESSING.getCode())
+                .addValue("succeededStatus", OutboxEventStatus.SUCCEEDED.getCode())
+                .addValue("deadStatus", OutboxEventStatus.DEAD.getCode());
     }
 
     private boolean update(String sql, MapSqlParameterSource params) {

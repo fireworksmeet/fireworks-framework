@@ -17,11 +17,6 @@ import org.springframework.validation.annotation.Validated;
 public class StorageProperties {
 
     /**
-     * 是否启用存储模块自动装配，默认 true
-     */
-    private boolean enabled = true;
-
-    /**
      * 系统默认存储桶（Bucket），调用上传/删除/获取URL 时 bucket 留空时使用此值
      */
     private String defaultBucket;

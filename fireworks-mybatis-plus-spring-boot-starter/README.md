@@ -12,7 +12,7 @@
 | --- | --- |
 | **分页拦截器自动装配** | 官方 starter **不会**自动注册 `MybatisPlusInterceptor`（最常见的踩坑点）。本模块注册它并设置单页上限；方言默认由 MyBatis-Plus 按连接 URL 识别，可用 `pagination.db-type` 覆盖；同时带上自 MP 3.5.9 起被拆出的 `mybatis-plus-jsqlparser`（少了它分页**静默失效**） |
 | **审计字段自动填充** | 注册 `AuditMetaObjectHandler`，让 `createdAt` / `updatedAt`（以及可选的 `createdBy` / `updatedBy`）免手写 |
-| **分页适配** | `PageAdapters.offset(IPage)` → Offset 响应；`cursorPage(size)` + `PageAdapters.cursor(IPage, cursorFn)` → Cursor 响应 |
+| **分页适配** | `PageAdapters.offset(IPage)` → Offset 响应；Cursor 模式不经 `IPage`，多查一条后直接 `PageResponse.ofCursor(rows, size, cursorFn)` |
 | **排序组件** | `AbstractSortRegistry` / `SortBuilder`：把「业务排序枚举」映射为 `OrderItem`，可直接应用到 `IPage` / `Wrapper`，也可导出 `ORDER BY` SQL 片段 |
 | **实体基类** | `BaseEntity`（主键 + 时间）、`BaseOperatorEntity`（+ 审计人）；**流水/日志表不要继承**，见 §实体基类 |
 | **扩展点** | `MybatisPlusCustomizer`：在框架装配的分页之上**追加**其它插件，不会覆盖分页 |
@@ -66,21 +66,22 @@ return Result.ok(PageAdapters.offset(page, UserVO::from));
 **Cursor 模式**（瀑布流、导出、深分页；不做 count）：
 
 ```java
-// 1. cursorPage(size) 内部查 size + 1 条并关闭 count
-IPage<User> page = userMapper.selectPage(PageAdapters.cursorPage(size),
+// 1. 多查一条用于判断 hasMore；关闭 count。用 Page 是为了仍然走分页插件的 maxLimit 保护
+List<User> rows = userMapper.selectPage(new Page<>(1, size + 1L, false),
         Wrappers.<User>lambdaQuery()
                 .lt(User::getCreatedAt, lastCreatedAt)      // 由上一页 nextCursor 解析而来
-                .orderByDesc(User::getCreatedAt).orderByDesc(User::getId));
+                .orderByDesc(User::getCreatedAt).orderByDesc(User::getId))
+        .getRecords();
 
-// 2. 转成游标响应：页大小从 page 反推，hasMore / nextCursor 自动得出
-return Result.ok(PageAdapters.cursor(page, UserVO::from,
+// 2. 直接转成游标响应：hasMore / nextCursor 由「是否拿到第 size + 1 条」得出
+return Result.ok(PageResponse.ofCursor(rows, size, UserVO::from,
         user -> CursorUtil.build(user.getCreatedAt(), user.getId())));
 ```
 
 两个必须遵守的前提：
 
 1. **排序必须稳定且唯一**：游标是按「上一页最后一条」续读的，排序里不追加 `id` 会导致相同时间戳的记录漏读或重读；
-2. **必须用 `PageAdapters.cursorPage(size)` 构造分页参数**：它负责多查一条并关闭 count，`cursor(...)` 再从 `page.getSize() - 1` 还原请求的页大小。自己 `new Page<>(1, size, false)` 会让 `hasMore` 判断失真。
+2. **必须多查一条**（`size + 1`）：`hasMore` 靠「是否取到第 `size + 1` 条」判断；只查 `size` 条时，恰好一页满也会被判成没有下一页。因此 `pagination.max-limit` 需要**大于**业务允许的最大 `size`（至少 +1），否则末尾一页会丢掉 `hasMore`。
 
 ### 4. 用实体基类
 

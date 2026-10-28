@@ -8,6 +8,7 @@ import com.yzm.fireworks.outbox.domain.OutboxEvent;
 import com.yzm.fireworks.outbox.exception.OutboxNonRetryableException;
 import com.yzm.fireworks.outbox.properties.OutboxProperties;
 import com.yzm.fireworks.outbox.repository.OutboxEventRepository;
+import com.yzm.fireworks.outbox.retry.RetryDecision;
 import com.yzm.fireworks.outbox.retry.OutboxRetryPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +58,8 @@ public class OutboxDispatcher {
             }
             handler.handle(event);
             markSucceeded(event, workerId);
-        } catch (Throwable e) {
+        } catch (Exception e) {
+            // 只把普通异常当作投递失败；Error（OOM 等）不吞，向上冒泡让线程池感知
             handleFailure(event, workerId, e);
         } finally {
             if (previousTraceId == null) {
@@ -85,7 +87,7 @@ public class OutboxDispatcher {
         String error = describe(e);
 
         boolean nonRetryable = isNonRetryable(e);
-        if (nonRetryable || currentRetryCount + 1 >= maxRetryCount) {
+        if (nonRetryable || RetryDecision.shouldDead(currentRetryCount, maxRetryCount)) {
             String reason = nonRetryable
                     ? "不可重试异常"
                     : "重试次数耗尽(" + (currentRetryCount + 1) + "/" + maxRetryCount + ")";

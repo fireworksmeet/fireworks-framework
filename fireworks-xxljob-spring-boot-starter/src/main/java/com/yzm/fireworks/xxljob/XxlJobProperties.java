@@ -11,11 +11,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class XxlJobProperties {
 
     /**
-     * 总开关[必填]，为 true 时执行器自动配置才会生效
-     */
-    private Boolean enabled;
-
-    /**
      * 调度中心通信令牌[选填]，需与调度中心配置一致
      */
     private String accessToken;

@@ -115,7 +115,7 @@ public class RestClientUtil {
      * @param builder      RestClient.Builder 构建器
      * @param url          绝对地址，或相对 builder 中 baseUrl 的路径
      * @param responseType 返回类型
-     * @param body         请求体，按 JSON 序列化
+     * @param body         请求体，按 JSON 序列化；为 null 时不发送 body
      * @param headers      额外请求头，可为 null
      * @param <T>          返回类型
      * @return 响应体，空响应体时为 null
@@ -131,7 +131,7 @@ public class RestClientUtil {
      * @param builder      RestClient.Builder 构建器
      * @param url          绝对地址，或相对 builder 中 baseUrl 的路径
      * @param responseType 返回类型
-     * @param body         请求体，按 JSON 序列化
+     * @param body         请求体，按 JSON 序列化；为 null 时不发送 body
      * @param headers      额外请求头，可为 null
      * @param <T>          返回类型
      * @return 响应体，空响应体时为 null
@@ -141,14 +141,14 @@ public class RestClientUtil {
         Assert.notNull(builder, "builder 不能为空");
         Assert.notNull(responseType, "responseType 不能为空");
 
-        return builder.build()
+        RestClient.RequestBodySpec spec = builder.build()
                 .post()
                 .uri(url)
                 .contentType(MediaType.APPLICATION_JSON)
-                .headers(headersConsumer(headers))
-                .body(body)
-                .retrieve()
-                .body(responseType);
+                .headers(headersConsumer(headers));
+        // body 为 null 时不发送请求体，与 WebClient 版本保持一致
+        RestClient.RequestHeadersSpec<?> request = body != null ? spec.body(body) : spec;
+        return request.retrieve().body(responseType);
     }
 
     /**

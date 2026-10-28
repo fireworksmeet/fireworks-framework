@@ -42,14 +42,17 @@ public class CronUtil {
                     dateTime.getMonthValue());
             case MONTH -> String.format("%d %d %d %d * ? *", dateTime.getSecond(),
                     dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfMonth());
+            // Quartz 的星期是 1=SUN … 7=SAT，而 DayOfWeek 是 1=MON … 7=SUN，
+            // 因此 (value % 7) + 1：MON=2 … SUN=1
             case WEEK -> String.format("%d %d %d ? * %d *", dateTime.getSecond(),
-                    dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfWeek().getValue() % 7);
+                    dateTime.getMinute(), dateTime.getHour(), dateTime.getDayOfWeek().getValue() % 7 + 1);
             case DAY -> String.format("%d %d %d * * ? *", dateTime.getSecond(),
                     dateTime.getMinute(), dateTime.getHour());
             case HOUR -> String.format("%d %d * * * ? *", dateTime.getSecond(),
                     dateTime.getMinute());
             case MINUTE -> String.format("%d * * * * ? *", dateTime.getSecond());
-            case SECOND -> "0/1 * * * * ? *";
+            // 每秒触发与传入的时间点无关（cron 无法表达“从某一秒开始每秒”），语义即 every second
+            case SECOND -> "* * * * * ? *";
         };
     }
 }

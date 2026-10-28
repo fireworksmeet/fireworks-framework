@@ -14,9 +14,10 @@ import com.yzm.fireworks.common.sensitive.SensitiveModule;
 import com.yzm.fireworks.common.util.SpringContextHolder;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
@@ -31,14 +32,24 @@ import java.math.BigInteger;
  * 说明：时间类型（LocalDateTime / Instant / OffsetDateTime 等）不在此处手动配置，统一交由
  * JavaTimeModule 默认实现按 ISO 格式序列化，且不设置全局 TimeZone，避免给无时区类型附加时区语义。
  * <p>
- * 【注册方式】{@link SpringContextHolder} 通过 {@code @Import} 显式注册：框架类不在业务应用的
- * 组件扫描范围内，且官方要求自动配置类不得启用 {@code @ComponentScan}。
+ * 【注册方式】{@link SpringContextHolder} 以 {@code @Bean} 注册（不用 {@code @Import}）：
+ * 框架类不在业务应用的组件扫描范围内，且官方要求自动配置类不得启用 {@code @ComponentScan}；
+ * 用 {@code @Bean} 还能通过构造器注入 {@link ApplicationContext}，无需实现 {@code ApplicationContextAware}。
  *
  * @author JYuan
  */
 @AutoConfiguration
-@Import(SpringContextHolder.class)
 public class CommonAutoConfiguration {
+
+    /**
+     * 容器持有者：静态工具方法通过它定位 Bean。
+     * <p>{@code @ConditionalOnMissingBean}：业务可整体替换自己的实现。
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public SpringContextHolder springContextHolder(ApplicationContext applicationContext) {
+        return new SpringContextHolder(applicationContext);
+    }
 
     /**
      * 注册 Jackson 全局定制器。
@@ -102,8 +113,9 @@ public class CommonAutoConfiguration {
                         }
                     });
 
-            // 配置自定义的脱敏模块
-            builder.modules(new SensitiveModule(), simpleModule);
+            // 追加自定义模块：用 modulesToInstall 而不是 modules —— 后者是"整体替换"语义，
+            // 会关闭 builder 的模块自动发现（JavaTimeModule 等），时间类型将无法序列化
+            builder.modulesToInstall(new SensitiveModule(), simpleModule);
         };
     }
 }

@@ -3,7 +3,7 @@ package com.yzm.fireworks.redis.lock;
 import java.lang.annotation.*;
 import java.util.concurrent.TimeUnit;
 
-import static com.yzm.fireworks.redis.Constants.LOCK_WAIT_TIME;
+import static com.yzm.fireworks.redis.RedisConstants.LOCK_WAIT_TIME;
 
 
 /**

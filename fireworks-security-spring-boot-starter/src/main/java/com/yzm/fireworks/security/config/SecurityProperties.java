@@ -7,10 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Security 配置属性
- * <p>
- * 已在 {@link SecurityAutoConfiguration} 中通过
- * {@code @EnableConfigurationProperties(SecurityProperties.class)} 正确激活。
+ * Security 配置属性。
+ *
+ * <p>认证方式不在这里配置：由业务实现 {@code SecurityUserResolver} 决定
+ * （网关头、JWT、Session 等）。框架只负责装配、授权转换与错误响应。
  *
  * @author JYuan
  */
@@ -19,22 +19,22 @@ import java.util.List;
 public class SecurityProperties {
 
     /**
-     * 是否启用自动配置的安全过滤链（默认 true）
+     * 角色前缀：装配 authority 时拼接在角色码前（默认 {@code ROLE_}），
+     * 使 {@code hasRole('ADMIN')} 与 {@code hasAuthority('ROLE_ADMIN')} 等价。
+     * <p>若业务角色码本身已带前缀，设为空串即可。
      */
-    private boolean enabled = true;
+    private String rolePrefix = "ROLE_";
 
     /**
-     * 网关透传用户信息的请求头名（默认 X-User-Context）
-     */
-    private String userContextHeader = "X-User-Context";
-
-    /**
-     * 免认证路径（Ant 风格），如 /actuator/**、/health
+     * 免认证路径，如 {@code /actuator/**}、{@code /health}；仅作用于框架默认链。
+     * <p>匹配器由 Spring Security 按环境选择：MVC 环境下是 {@code MvcRequestMatcher}
+     * （PathPattern 语义），不是 Ant。{@code /**} 两种写法行为一致，但单段 {@code *} 的语义不同。
      */
     private List<String> permitAllPaths = new ArrayList<>();
 
     /**
-     * 是否启用 CORS（默认 true，由 SecurityFilterChain 统一处理）
+     * 是否启用 CORS（默认 true，由框架默认链处理）；业务自定义链时自行配置。
+     * <p>即使为 true，未配置 {@code allowed-origin-patterns} 时也不会启用——默认不放行任何跨域来源。
      */
     private boolean corsEnabled = true;
 
@@ -52,10 +52,10 @@ public class SecurityProperties {
 
         /**
          * 允许的源模式（如 {@code https://a.com}、{@code https://*.a.com}）
-         * <p>【安全提示】默认 {@code *} 表示放行任意源。当 {@link #allowCredentials} 为 true 时，
-         * 意味着任意站点均可携带凭证跨域访问，生产环境建议按需收窄为具体域名。
+         * <p><b>默认空：不启用 CORS</b>。需要跨域访问时显式配置；不要用 {@code *}
+         * 配合 {@link #allowCredentials}，那等于允许任意站点发起带凭证的请求。
          */
-        private List<String> allowedOriginPatterns = new ArrayList<>(List.of("*"));
+        private List<String> allowedOriginPatterns = new ArrayList<>();
 
         /**
          * 允许的请求方法
@@ -74,8 +74,9 @@ public class SecurityProperties {
 
         /**
          * 是否允许携带凭证（Cookie / Authorization 等）
+         * <p>默认关闭：凭证 + 任意源等于把跨域写接口暴露给所有站点。
          */
-        private boolean allowCredentials = true;
+        private boolean allowCredentials = false;
 
         /**
          * 预检请求缓存时间（秒）

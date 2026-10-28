@@ -55,6 +55,12 @@ public class ResultErrorAttributes extends DefaultErrorAttributes {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p><b>{@code options} 有意忽略</b>：容器可能要求包含 {@code message} / {@code bindingErrors}，
+     * 但错误响应体只暴露 {@link Result} 的业务码与提示，避免把内部异常细节返回给调用方。
+     */
     @Override
     public Map<String, Object> getErrorAttributes(WebRequest webRequest, ErrorAttributeOptions options) {
         HttpServletRequest request = resolveRequest(webRequest);
@@ -86,13 +92,17 @@ public class ResultErrorAttributes extends DefaultErrorAttributes {
         if (ObjectUtils.isEmpty(statusCode)) {
             return CommonExceptionStatus.SERVER_ERROR;
         }
+        // 与 GlobalExceptionHandler 的映射保持一致：
+        // 415 / 406 是"内容类型"问题，不能归到「参数错误」，否则同一状态码在两条路径上给出不同业务码
         return switch (statusCode) {
+            case 400 -> CommonExceptionStatus.REQUEST_PARAMS_ERROR;
             case 401 -> CommonExceptionStatus.UNAUTHORIZED;
             case 403 -> CommonExceptionStatus.FORBIDDEN;
             case 404 -> CommonExceptionStatus.NOT_FOUND;
             case 405 -> CommonExceptionStatus.METHOD_NOT_SUPPORTED;
+            case 406 -> CommonExceptionStatus.MEDIA_TYPE_NOT_ACCEPTABLE;
+            case 415 -> CommonExceptionStatus.MEDIA_TYPE_NOT_SUPPORTED;
             case 429 -> CommonExceptionStatus.SERVER_DEGRADE;
-            case 400, 415 -> CommonExceptionStatus.REQUEST_PARAMS_ERROR;
             default -> statusCode >= 500 ? CommonExceptionStatus.SERVER_ERROR : CommonExceptionStatus.REQUEST_PARAMS_ERROR;
         };
     }
@@ -136,8 +146,8 @@ public class ResultErrorAttributes extends DefaultErrorAttributes {
             // 容器层 5xx：本身就是故障，需人工介入
             log.error("容器错误(无异常对象): uri={}, httpStatus={}", uri, statusCode);
         } else {
-            // 其余 4xx（401 / 403 等）：非预期但可容忍
-            log.warn("容器错误(无异常对象): uri={}, httpStatus={}", uri, statusCode);
+            // 其余 4xx 均为客户端问题（含 401 / 403）：与安全链保持一致的定级，排查用 DEBUG，统计走指标
+            log.debug("容器错误(无异常对象): uri={}, httpStatus={}", uri, statusCode);
         }
     }
 }

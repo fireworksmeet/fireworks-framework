@@ -68,7 +68,8 @@ public final class MessageProviderRegistry {
         Map<ProviderType, MessageProvider<?>> byType = providers.get(channelType);
         if (byType == null || byType.isEmpty()) {
             throw new IllegalStateException("Channel " + channelType
-                    + " is enabled but no MessageProvider is registered");
+                    + " is enabled but no MessageProvider is registered"
+                    + "（检查 " + configPath + " 与 classpath 上是否有对应厂商 SDK）");
         }
         if (configured == null) {
             if (byType.size() > 1) {

@@ -21,6 +21,8 @@
 # 二、Spring Boot 使用原则
 
 - 【强制】使用 Spring Boot 的自动配置与标准能力，不重复实现框架已有能力；**禁止**无理由关闭自动配置。
+- 【说明】自动配置类统一命名 `XxxAutoConfiguration`；但与 Boot / 三方库已有的同名类冲突时，保留 `Fireworks` 前缀（如 `FireworksRedisAutoConfiguration`、`FireworksMybatisPlusAutoConfiguration`），否则日志与异常栈会指向错误的那一个。
+- 【强制】纯开关（`enabled`）**不在 `@ConfigurationProperties` 类里留字段**（除非代码真的读取它）：装配由 `@ConditionalOnProperty` 决定，IDE 提示通过 `META-INF/additional-spring-configuration-metadata.json` 提供。否则字段与注解会成为两套默认值，容易被误当作第二个开关。
 - 【推荐】启动类放在项目根包下，使组件扫描范围清晰。
 - 【禁止】使用默认包（不声明 `package`）。
 
@@ -300,6 +302,8 @@ public class UserService {
 - 【禁止】在初始化回调中执行复杂业务逻辑。
 - 【禁止】在启动阶段执行长时间、不可控的远程调用。
 - 【推荐】需要应用启动后执行的任务，使用 `ApplicationReadyEvent` 等明确的生命周期机制，并保证任务幂等。
+- 【推荐】生命周期回调优先用 `jakarta.annotation.PostConstruct` / `PreDestroy`，不用 `InitializingBean` / `DisposableBean`——后者会让代码不必要地耦合到 Spring。仅当类本身是 Spring 基类扩展（如 `RedisTemplate` 子类）或需要脱离容器手动触发时才用接口形式。
+- 【推荐】需要容器能力（`ApplicationContext` / `BeanFactory` / `Environment`）时，优先通过**构造器或 `@Bean` 方法参数**注入；`*Aware` 只用于“由容器直接实例化、不经过我们的 `@Bean` 方法”的类（如 `BeanPostProcessor`、`BeanFactoryPostProcessor`）。
 
 ---
 

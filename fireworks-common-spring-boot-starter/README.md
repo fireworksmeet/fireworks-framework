@@ -182,7 +182,7 @@ Instant next3 = BackoffUtil.additiveJitter(retryCount, baseDelay, maxDelay, Dura
 - 允许单引号、非引号属性名、未转义控制字符、反斜杠转义任意字符等宽松解析。
 
 **时间类型（重要）**
-- **不再手动配置任何时间序列化器 / 时区**，统一交由 Jackson `JavaTimeModule` 的**默认实现**按各自 ISO 格式序列化/反序列化。
+- **不手动配置任何时间序列化器 / 时区**，统一交由 Jackson `JavaTimeModule` 的**默认实现**按各自 ISO 格式序列化/反序列化。
 - `LocalDateTime` → `2026-08-18T12:30:00`（ISO，无时区）；`Instant` → `2026-08-18T04:30:00Z`（UTC，带 Z）；`OffsetDateTime`/`ZonedDateTime` 含时区偏移。
 - **不设置全局 `TimeZone`**：避免人为给没有时区的时间类型（如 `LocalDateTime`）附加全局时区语义，防止跨时区序列化错乱。
 

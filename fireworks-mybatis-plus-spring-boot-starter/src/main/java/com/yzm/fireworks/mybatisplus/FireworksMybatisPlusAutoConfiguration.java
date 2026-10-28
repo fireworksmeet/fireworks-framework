@@ -35,6 +35,10 @@ import javax.sql.DataSource;
  *
  * <p>所有 Bean 都带 {@link ConditionalOnMissingBean}，业务可整体接管。
  *
+ * <p><b>类名带 {@code Fireworks} 前缀是故意的</b>：MyBatis-Plus 自身存在
+ * {@code com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration}
+ * （3.5.6 等版本），同名会让日志与异常栈难以分辨。
+ *
  * @author JYuan
  */
 @Slf4j

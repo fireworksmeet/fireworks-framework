@@ -12,11 +12,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 public class IpLocationProperties {
     /**
-     * 是否开启IP地理位置服务
-     */
-    private boolean enabled = false;
-
-    /**
      * IPv4地址库路径（classpath相对路径或绝对路径）
      */
     private String v4XdbPath = "ip2region/ip2region_v4.xdb";

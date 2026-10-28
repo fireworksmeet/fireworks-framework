@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "fireworks.webflux-client.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用 WebClient 自动配置（默认开启）。"
+    }
+  ]
+}

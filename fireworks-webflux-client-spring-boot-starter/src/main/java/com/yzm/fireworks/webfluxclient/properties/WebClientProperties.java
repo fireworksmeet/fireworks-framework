@@ -18,7 +18,7 @@ import java.time.Duration;
  *     max-connections: 500           # 连接池上限
  *     pending-acquire-max-count: 1000 # 池满时允许排队的请求数，-1 为不限
  *     acquire-timeout: 1s            # 排队等待上限
- *     max-life-time: 30m             # 连接自建立起的总存活时间
+ *     max-life-time: 5m              # 连接自建立起的总存活时间
  *     max-idle-time: 30s             # 空闲多久被回收
  *     evict-in-background: 60s       # 后台驱逐检查间隔
  * </pre>
@@ -43,14 +43,17 @@ public class WebClientProperties {
 
     /**
      * 排队获取连接的最长等待时间，超时抛 {@code PoolAcquireTimeoutException}。
+     * <p>与 {@code fireworks.rest-client.acquire-timeout} 同名同义同默认值（1s）。
      */
     private Duration acquireTimeout = Duration.ofSeconds(1);
 
     /**
      * 连接自建立起的总存活时间，与是否空闲无关。
      * <p>用于让 DNS / 负载均衡变更逐步生效；设得太小会造成周期性重建连接。
+     * <p>与 {@code fireworks.rest-client.max-life-time} 同名同义同默认值（5m）：
+     * 5 分钟粒度下的重建开销可忽略，换来 DNS / LB 变更更快的生效速度。
      */
-    private Duration maxLifeTime = Duration.ofMinutes(30);
+    private Duration maxLifeTime = Duration.ofMinutes(5);
 
     /**
      * 连接空闲多久后被回收，须小于服务端 keepAlive。

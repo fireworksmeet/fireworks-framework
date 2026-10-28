@@ -1,14 +1,14 @@
 package com.yzm.fireworks.redis.lock;
 
-import com.yzm.fireworks.redis.Constants;
+import com.yzm.fireworks.redis.RedisConstants;
+import com.yzm.fireworks.redis.RedisLookup;
 import com.yzm.fireworks.redis.RedisUtil;
-import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.util.Assert;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -22,19 +22,10 @@ import java.util.concurrent.TimeUnit;
  *
  * @author JYuan
  */
-@Slf4j
 public class LockService {
 
     private final RedissonClient defaultClient;
     private final Map<String, RedissonClient> clientMap;
-
-    /**
-     * 单数据源构造器
-     */
-    public LockService(RedissonClient redissonClient) {
-        this.defaultClient = redissonClient;
-        this.clientMap = Collections.emptyMap();
-    }
 
     /**
      * 多数据源构造器
@@ -57,41 +48,54 @@ public class LockService {
      * @throws IllegalArgumentException 数据源不存在时抛出
      */
     public LockService on(String datasource) {
-        RedissonClient client = clientMap.get(datasource);
-        Assert.notNull(client,
-                "Unknown Redis datasource for lock: '" + datasource + "'. Available: " + clientMap.keySet());
-        return new LockService(client, clientMap);
+        return new LockService(RedisLookup.require(clientMap, datasource, "Redis datasource for lock"), clientMap);
     }
 
     /**
-     * 尝试获取分布式锁，不抛异常
+     * 尝试获取分布式锁，不抛异常。
+     *
+     * <p>返回的 {@link LockHandle} <b>必须释放</b>，推荐 try-with-resources：
+     * <pre>{@code
+     * try (LockService.LockHandle lock = lockService.tryLock("order:1", 0, TimeUnit.SECONDS).orElse(null)) {
+     *     if (lock == null) { return; }   // 没抢到，直接跳过
+     *     // 业务
+     * }
+     * }</pre>
+     *
+     * <p>只返回 {@code boolean} 会让调用方拿不到锁对象、无法释放（Redisson 的看门狗会持续续期），
+     * 因此这里把锁句柄一并返回。
      *
      * @param key      锁的 key
      * @param waitTime 获取锁的最大等待时间
      * @param unit     时间单位
-     * @return 是否成功获取锁
+     * @return 抢到锁时返回句柄，抢不到（或被中断）返回 {@link Optional#empty()}
      */
-    public boolean tryLock(String key, long waitTime, TimeUnit unit) {
+    public Optional<LockHandle> tryLock(String key, long waitTime, TimeUnit unit) {
         RLock lock = defaultClient.getLock(key);
         try {
-            return lock.tryLock(waitTime, unit);
+            return lock.tryLock(waitTime, unit) ? Optional.of(new LockHandle(lock)) : Optional.empty();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return false;
+            return Optional.empty();
         }
     }
 
     /**
-     * 获取分布式锁，失败时抛出异常
-     *
-     * @param key      锁的 key
-     * @param waitTime 获取锁的最大等待时间
-     * @param unit     时间单位
-     * @throws LockAcquisitionException 获取锁失败时抛出
+     * 已获取的锁句柄：关闭即释放，必须在拿到它的线程上关闭。
      */
-    public void lockOrThrow(String key, long waitTime, TimeUnit unit) {
-        if (!tryLock(key, waitTime, unit)) {
-            throw new LockAcquisitionException(key);
+    public static final class LockHandle implements AutoCloseable {
+
+        private final RLock lock;
+
+        private LockHandle(RLock lock) {
+            this.lock = lock;
+        }
+
+        @Override
+        public void close() {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         }
     }
 
@@ -105,7 +109,7 @@ public class LockService {
      * @throws LockAcquisitionException 获取锁失败（含被中断）时抛出
      * @throws Throwable                业务逻辑本身抛出的异常
      */
-    public <T> T executeWithLock(String key, int waitTime, TimeUnit unit, SupplierThrow<T> supplier) throws Throwable {
+    public <T> T executeWithLock(String key, long waitTime, TimeUnit unit, SupplierThrow<T> supplier) throws Throwable {
         RLock lock = defaultClient.getLock(key);
         boolean lockSuccess;
         try {
@@ -120,7 +124,8 @@ public class LockService {
         try {
             return supplier.get();
         } finally {
-            if (lock.isLocked() && lock.isHeldByCurrentThread()) {
+            // isHeldByCurrentThread() 已包含“是否仍被锁住”的判断，再调 isLocked() 只是多一次往返
+            if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
             }
         }
@@ -130,7 +135,7 @@ public class LockService {
      * 使用默认等待时间执行分布式锁保护的业务逻辑
      */
     public <T> T executeWithLock(String key, SupplierThrow<T> supplier) throws Throwable {
-        return executeWithLock(key, Constants.LOCK_WAIT_TIME, TimeUnit.SECONDS, supplier);
+        return executeWithLock(key, RedisConstants.LOCK_WAIT_TIME, TimeUnit.SECONDS, supplier);
     }
 
     /**

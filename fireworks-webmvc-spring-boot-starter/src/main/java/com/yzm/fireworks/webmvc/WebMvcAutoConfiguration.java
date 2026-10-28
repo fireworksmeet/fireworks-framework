@@ -1,7 +1,6 @@
 package com.yzm.fireworks.webmvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yzm.fireworks.webmvc.properties.ClientInfoProperties;
 import com.yzm.fireworks.webmvc.properties.IpLocationProperties;
 import com.yzm.fireworks.webmvc.handler.GlobalExceptionHandler;
 import com.yzm.fireworks.webmvc.handler.ResultErrorAttributes;
@@ -30,7 +29,7 @@ import org.springframework.context.annotation.Import;
  */
 @AutoConfiguration(before = ErrorMvcAutoConfiguration.class)
 @Import(GlobalExceptionHandler.class)
-@EnableConfigurationProperties({IpLocationProperties.class, ClientInfoProperties.class})
+@EnableConfigurationProperties(IpLocationProperties.class)
 public class WebMvcAutoConfiguration {
 
     /**

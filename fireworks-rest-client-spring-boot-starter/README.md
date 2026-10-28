@@ -10,7 +10,7 @@
 | 连接池容量、取连接等待、TTL、空闲回收、闲置校验 | `fireworks.rest-client.*` | Boot 不提供，由本模块补齐 |
 | 负载均衡 | `@LoadBalanced RestClient.Builder` | Spring Cloud LoadBalancer |
 
-> 本模块**不再**替换 `requestFactory`。Boot 的 `RestClientBuilderConfigurer` 会先按 `spring.http.client.*` 建好 factory，再应用所有 `RestClientCustomizer`；覆盖 factory 会让官方属性整体静默失效。
+> 本模块**不替换** `requestFactory`，只通过 `ClientHttpRequestFactoryBuilderCustomizer` 追加池化参数。Boot 的 `RestClientBuilderConfigurer` 会先按 `spring.http.client.*` 建好 factory，再应用所有 `RestClientCustomizer`；覆盖 factory 会让官方属性整体静默失效。
 
 ## 快速开始
 
@@ -35,10 +35,11 @@ spring:
 
 fireworks:
   rest-client:
-    connection-request-timeout: 800ms   # 从连接池取连接的等待上限
-    max-conn-total: 500                 # 连接池总容量
-    max-conn-per-route: 200             # 单个目标主机最大连接数
-    time-to-live: 5m                    # 连接自建立起的总存活时间
+    enabled: true                       # 模块开关；关闭后不注册任何客户端 Bean
+    acquire-timeout: 1s                 # 从连接池取连接的等待上限
+    max-connections: 500                # 连接池总容量
+    max-connections-per-route: 200      # 单个目标主机最大连接数
+    max-life-time: 5m                   # 连接自建立起的总存活时间
     max-idle-time: 30s                  # 空闲多久被回收
     validate-after-inactivity: 2s       # 闲置多久后使用前重新校验
 ```
@@ -136,10 +137,10 @@ Result<Void> login = RestClientUtil.postForm(builder, "/login", Result.class, fo
 
 ### 连接池（`fireworks.rest-client.*`）
 
-- `max-conn-per-route`：`≥ 峰值QPS × 平均响应时间(秒) × 1.5`。示例：500QPS × 0.2s × 1.5 = 150，取 200
-- `max-conn-total`：`Σ(max-conn-per-route)`；只调一个目标主机时两者可相等
-- `connection-request-timeout`：从池中取连接的等待上限，快速失败优于无限排队；频繁超时说明 `max-conn-per-route` 不足
-- `time-to-live`：连接自建立起的总存活时间，**与空闲无关**。设得太小会在高 QPS 下周期性重建连接；它的用途是让 DNS / 负载均衡变更逐步生效
+- `max-connections-per-route`：`≥ 峰值QPS × 平均响应时间(秒) × 1.5`。示例：500QPS × 0.2s × 1.5 = 150，取 200
+- `max-connections`：`Σ(max-connections-per-route)`；只调一个目标主机时两者可相等
+- `acquire-timeout`：从池中取连接的等待上限，快速失败优于无限排队；频繁超时说明 `max-connections-per-route` 不足
+- `max-life-time`：连接自建立起的总存活时间，**与空闲无关**。设得太小会在高 QPS 下周期性重建连接；它的用途是让 DNS / 负载均衡变更逐步生效
 - `max-idle-time`：空闲多久被回收，必须小于服务端 keepAlive（Nginx 默认 75s）
 - `validate-after-inactivity`：闲置连接复用前先校验，用于规避服务端已关闭的僵尸连接（`NoHttpResponseException` / `Connection reset`）
 

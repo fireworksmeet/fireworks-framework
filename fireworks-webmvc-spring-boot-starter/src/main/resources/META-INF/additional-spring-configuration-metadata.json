@@ -1,0 +1,16 @@
+{
+  "properties": [
+    {
+      "name": "fireworks.webmvc.ip-location.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "是否开启 IP 地理位置服务（默认关闭，需显式开启）。"
+    },
+    {
+      "name": "fireworks.webmvc.client-info.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "是否开启客户端信息分析（默认关闭，需显式开启）。"
+    }
+  ]
+}

@@ -3,7 +3,6 @@ package com.yzm.fireworks.redis;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.yzm.fireworks.common.aop.MetadataSourcePointcut;
-import com.yzm.fireworks.redis.lock.DistributedLock;
 import com.yzm.fireworks.redis.lock.DistributedLockInterceptor;
 import com.yzm.fireworks.redis.lock.DistributedLockMetadataSource;
 import com.yzm.fireworks.redis.lock.LockService;
@@ -11,11 +10,7 @@ import io.lettuce.core.resource.ClientResources;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
-import org.springframework.aop.Pointcut;
-import org.springframework.aop.support.AbstractBeanFactoryPointcutAdvisor;
-import org.springframework.aop.support.DefaultBeanFactoryPointcutAdvisor;
-import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -27,35 +22,35 @@ import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Role;
 import org.springframework.core.Ordered;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import static com.yzm.fireworks.common.constants.StringPool.COLON;
-import static com.yzm.fireworks.redis.Constants.*;
+import static com.yzm.fireworks.redis.RedisConstants.*;
 
 
 /**
- * Redis 自动配置类
+ * Redis 自动配置类。
+ *
+ * <p><b>类名带 {@code Fireworks} 前缀是故意的</b>：Spring Boot 已有一个
+ * {@link RedisAutoConfiguration}，同名会让日志、异常栈和排查时的第一反应都指向错误的那一个。
+ * 类似地，与 Boot 既有自动配置同名的类不做“风格统一”式重命名。
  *
  * @author JYuan
  */
 @AutoConfiguration
 @AutoConfigureBefore(RedisAutoConfiguration.class)
 @EnableConfigurationProperties(MultiRedisProperties.class)
-@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class FireworksRedisAutoConfiguration {
 
     /**
@@ -68,39 +63,40 @@ public class FireworksRedisAutoConfiguration {
     public LockService lockService(RedissonClient redissonClient,
                                    ObjectProvider<MultiRedisManager> multiRedisManagerProvider) {
         MultiRedisManager manager = multiRedisManagerProvider.getIfAvailable();
-        if (manager != null) {
-            return new LockService(redissonClient, manager.getRedissonMap());
-        }
-        return new LockService(redissonClient);
+        // 空 Map 与单数据源构造器等价：on() 会给出“多数据源未开启”的提示
+        return new LockService(redissonClient, manager == null ? Map.of() : manager.redissonMap());
     }
 
     @Bean
+    @ConditionalOnMissingBean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public DistributedLockMetadataSource distributedLockMetadataSource() {
         return new DistributedLockMetadataSource();
     }
 
     @Bean
+    @ConditionalOnMissingBean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    public DistributedLockInterceptor distributedLockInterceptor(DistributedLockMetadataSource metadataSource, @Lazy LockService lockService) {
+    public DistributedLockInterceptor distributedLockInterceptor(DistributedLockMetadataSource metadataSource,
+                                                                 LockService lockService) {
         return new DistributedLockInterceptor(metadataSource, lockService);
     }
 
+    /**
+     * 分布式锁 advisor：切点来自 {@link MetadataSourcePointcut}，通知是拦截器实例。
+     *
+     * <p>用标准 {@link DefaultPointcutAdvisor}：创建时就能拿到 advice，不需要按 Bean 名懒加载。
+     * <b>也不要在它上面按 {@code AbstractBeanFactoryPointcutAdvisor} 判类型的条件</b>——
+     * 事务 advisor 同样是该类型的子类，条件会让分布式锁静默失效。
+     */
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    public AbstractBeanFactoryPointcutAdvisor distributedLockAdvisor(DistributedLockInterceptor interceptor, DistributedLockMetadataSource metadataSource) {
-        AbstractBeanFactoryPointcutAdvisor advisor = new AbstractBeanFactoryPointcutAdvisor() {
-
-            private final Pointcut pointcut = new MetadataSourcePointcut<>(metadataSource);
-
-            @Override
-            @NonNull
-            public Pointcut getPointcut() {
-                return pointcut;
-            }
-        };
-        advisor.setAdvice(interceptor);
-        advisor.setOrder(Ordered.HIGHEST_PRECEDENCE); // 保持最高优先级, 最低可以用 Ordered.LOWEST_PRECEDENCE
+    public DefaultPointcutAdvisor distributedLockAdvisor(DistributedLockInterceptor interceptor,
+                                                         DistributedLockMetadataSource metadataSource) {
+        DefaultPointcutAdvisor advisor = new DefaultPointcutAdvisor(
+                new MetadataSourcePointcut<>(metadataSource), interceptor);
+        // 保持最高优先级（最低可用 Ordered.LOWEST_PRECEDENCE）
+        advisor.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return advisor;
     }
 
@@ -109,6 +105,22 @@ public class FireworksRedisAutoConfiguration {
     public JsonRedisTemplate getJsonRedisTemplate(RedisConnectionFactory redisConnectionFactory,
                                                   ObjectMapper objectMapper) {
         return new JsonRedisTemplate(redisConnectionFactory, objectMapper);
+    }
+
+    /**
+     * 多数据源模式：模板 Bean 由框架提供，绑定到 primary 数据源。
+     *
+     * <p>不提供的话，{@link RedisUtil} 只能依赖 Boot 的 {@code RedisAutoConfiguration} 创建模板——
+     * 业务一旦排除该自动配置（只用 {@code fireworks.redis.multi} 配置数据源），启动时就缺 Bean。
+     * 本类排在 Boot 之前，Boot 的 {@code @ConditionalOnMissingBean} 会自然让位。
+     */
+    @Bean
+    @Primary
+    @ConditionalOnMissingBean
+    @ConditionalOnMultiRedis
+    public StringRedisTemplate stringRedisTemplate(MultiRedisManager multiRedisManager) {
+        // 复用管理器里 primary 数据源的模板实例，避免同一连接工厂上出现两个 StringRedisTemplate
+        return multiRedisManager.primaryContext().getStringRedisTemplate();
     }
 
     /**
@@ -121,10 +133,8 @@ public class FireworksRedisAutoConfiguration {
                                StringRedisTemplate stringRedisTemplate,
                                ObjectProvider<MultiRedisManager> multiRedisManagerProvider) {
         MultiRedisManager manager = multiRedisManagerProvider.getIfAvailable();
-        if (manager != null) {
-            return new RedisUtil(jsonRedisTemplate, stringRedisTemplate, manager.getContextMap());
-        }
-        return new RedisUtil(jsonRedisTemplate, stringRedisTemplate);
+        return new RedisUtil(jsonRedisTemplate, stringRedisTemplate,
+                manager == null ? Map.of() : manager.contextMap());
     }
 
     /**
@@ -135,36 +145,50 @@ public class FireworksRedisAutoConfiguration {
      * 都绑定到 primary 数据源，与 {@link RedisUtil} 的 defaultContext 保持一致。
      */
     @Bean
-    @ConditionalOnProperty(prefix = "spring.data.redis.multi", name = "enabled")
+    @ConditionalOnMissingBean
+    @ConditionalOnMultiRedis
     public MultiRedisManager multiRedisManager(
             ObjectProvider<LettuceClientConfigurationBuilderCustomizer> builderCustomizers,
             ClientResources clientResources,
             MultiRedisProperties multiRedisProperties,
             ObjectMapper objectMapper
     ) {
+        Assert.notEmpty(multiRedisProperties.getDatasource(),
+                "fireworks.redis.multi.enabled=true 时必须配置 datasource（至少一个数据源）");
         String primary = multiRedisProperties.getPrimary();
-        Assert.hasText(primary, "spring.data.redis.multi.primary must be configured");
+        Assert.hasText(primary, "fireworks.redis.multi.primary must be configured");
 
-        Map<String, LettuceConnectionFactory> factoryMap = Maps.newHashMap();
+        // LinkedHashMap：保证启动顺序与配置顺序一致，排查日志时更直观
+        Map<String, LettuceConnectionFactory> factoryMap = Maps.newLinkedHashMap();
         Map<String, RedisContext> contextMap = Maps.newHashMap();
         Map<String, RedissonClient> redissonMap = Maps.newHashMap();
 
-        multiRedisProperties.getDatasource().forEach((name, props) -> {
-            LettuceConnectionFactory factory = createConnectionFactory(
-                    props, builderCustomizers, clientResources
-            );
-            factory.afterPropertiesSet();
-            factoryMap.put(name, factory);
+        try {
+            multiRedisProperties.getDatasource().forEach((name, props) -> {
+                LettuceConnectionFactory factory =
+                        LettuceConnectionFactories.create(props, builderCustomizers, clientResources);
+                factory.afterPropertiesSet();
+                factoryMap.put(name, factory);
 
-            JsonRedisTemplate jsonTemplate = new JsonRedisTemplate(factory, objectMapper);
-            StringRedisTemplate stringTemplate = new StringRedisTemplate(factory);
-            contextMap.put(name, new RedisContext(jsonTemplate, stringTemplate));
+                JsonRedisTemplate jsonTemplate = new JsonRedisTemplate(factory, objectMapper);
+                StringRedisTemplate stringTemplate = new StringRedisTemplate(factory);
+                contextMap.put(name, new RedisContext(jsonTemplate, stringTemplate));
 
-            RedissonClient redissonClient = createRedisson(props);
-            redissonMap.put(name, redissonClient);
-        });
+                redissonMap.put(name, createRedisson(Endpoint.of(props)));
+            });
+        } catch (RuntimeException e) {
+            // 初始化不是原子的：任一数据源失败就回滚已创建的连接工厂与 Redisson，
+            // 否则它们会一直持有线程与连接，且不会被容器管理（Bean 创建失败后不会进入销毁流程）
+            MultiRedisManager.release(factoryMap, redissonMap, "rollback");
+            throw e;
+        }
 
-        return new MultiRedisManager(factoryMap, contextMap, redissonMap);
+        // primary 必须真的存在：否则要等到 primaryLettuceConnectionFactory 时才报错，信息更含糊
+        Assert.isTrue(factoryMap.containsKey(primary),
+                () -> "fireworks.redis.multi.primary=" + primary
+                        + " 未在 datasource 中定义，已定义的数据源：" + factoryMap.keySet());
+
+        return new MultiRedisManager(primary, factoryMap, contextMap, redissonMap);
     }
 
     /**
@@ -173,13 +197,9 @@ public class FireworksRedisAutoConfiguration {
      */
     @Bean(destroyMethod = "")   // ← 禁止 Spring 自动调用 destroy
     @Primary
-    @ConditionalOnProperty(prefix = "spring.data.redis.multi", name = "enabled")
-    public LettuceConnectionFactory primaryLettuceConnectionFactory(MultiRedisManager multiRedisManager,
-                                                                    MultiRedisProperties multiRedisProperties) {
-        String primary = multiRedisProperties.getPrimary();
-        LettuceConnectionFactory factory = multiRedisManager.getFactoryMap().get(primary);
-        Assert.notNull(factory, "Primary datasource '" + primary + "' not found in MultiRedisManager");
-        return factory;
+    @ConditionalOnMultiRedis
+    public LettuceConnectionFactory primaryLettuceConnectionFactory(MultiRedisManager multiRedisManager) {
+        return multiRedisManager.primaryFactory();
     }
 
     /**
@@ -188,13 +208,9 @@ public class FireworksRedisAutoConfiguration {
      */
     @Bean(destroyMethod = "")   // ← 禁止 Spring 自动调用 shutdown
     @Primary
-    @ConditionalOnProperty(prefix = "spring.data.redis.multi", name = "enabled")
-    public RedissonClient primaryRedisson(MultiRedisManager multiRedisManager,
-                                          MultiRedisProperties multiRedisProperties) {
-        String primary = multiRedisProperties.getPrimary();
-        RedissonClient client = multiRedisManager.getRedissonMap().get(primary);
-        Assert.notNull(client, "Primary RedissonClient '" + primary + "' not found");
-        return client;
+    @ConditionalOnMultiRedis
+    public RedissonClient primaryRedisson(MultiRedisManager multiRedisManager) {
+        return multiRedisManager.primaryRedisson();
     }
 
     /**
@@ -203,88 +219,72 @@ public class FireworksRedisAutoConfiguration {
      */
     @Bean(destroyMethod = "shutdown")
     @ConditionalOnMissingBean({RedissonClient.class})
+    // 显式表达“多数据源未开启”，不依赖与 primaryRedisson 的注册顺序
+    @ConditionalOnProperty(prefix = "fireworks.redis.multi", name = "enabled",
+            havingValue = "false", matchIfMissing = true)
     public RedissonClient redisson(RedisProperties redisProperties) {
-        return createRedisson(redisProperties);
+        return createRedisson(Endpoint.of(redisProperties));
     }
 
     // ── 私有工具 ────────────────────────────────────────────────────────────────
 
-    private RedissonClient createRedisson(RedisProperties redisProperties) {
-        Duration duration = redisProperties.getTimeout();
-        int timeout = ObjectUtils.isEmpty(duration) ? CONNECT_TIME_OUT : (int) duration.toMillis();
+    /**
+     * 构建 Redisson 客户端（两种配置来源最终都归一化成 {@link Endpoint}）。
+     */
+    private RedissonClient createRedisson(Endpoint endpoint) {
+        // 连接超时与命令超时是两个参数：之前把命令超时误当成连接超时
+        int connectTimeout = ObjectUtils.isEmpty(endpoint.connectTimeout())
+                ? CONNECT_TIME_OUT : (int) endpoint.connectTimeout().toMillis();
+        int commandTimeout = ObjectUtils.isEmpty(endpoint.timeout())
+                ? CONNECT_TIME_OUT : (int) endpoint.timeout().toMillis();
 
-        String username = redisProperties.getUsername();
         Config config = new Config();
-        RedisProperties.Cluster cluster = redisProperties.getCluster();
-        if (!ObjectUtils.isEmpty(cluster)) {
-            List<String> nodes = cluster.getNodes();
+        if (!ObjectUtils.isEmpty(endpoint.nodes())) {
             config.useClusterServers()
-                    .addNodeAddress(nodes.toArray(new String[0]))
-                    .setConnectTimeout(timeout)
-                    .setUsername(username)
-                    .setPassword(redisProperties.getPassword());
+                    .addNodeAddress(endpoint.nodes().toArray(new String[0]))
+                    .setConnectTimeout(connectTimeout)
+                    .setTimeout(commandTimeout)
+                    .setUsername(endpoint.username())
+                    .setPassword(endpoint.password());
         } else {
-            String prefix = redisProperties.getSsl().isEnabled() ? REDISS_PROTOCOL_PREFIX : REDIS_PROTOCOL_PREFIX;
+            String prefix = endpoint.ssl() ? REDISS_PROTOCOL_PREFIX : REDIS_PROTOCOL_PREFIX;
             config.useSingleServer()
-                    .setAddress(prefix + redisProperties.getHost() + COLON + redisProperties.getPort())
-                    .setConnectTimeout(timeout)
-                    .setDatabase(redisProperties.getDatabase())
-                    .setUsername(username)
-                    .setPassword(redisProperties.getPassword());
+                    .setAddress(prefix + endpoint.host() + COLON + endpoint.port())
+                    .setConnectTimeout(connectTimeout)
+                    .setTimeout(commandTimeout)
+                    .setDatabase(endpoint.database())
+                    .setUsername(endpoint.username())
+                    .setPassword(endpoint.password());
         }
         return Redisson.create(config);
     }
 
-    private LettuceConnectionFactory createConnectionFactory(
-            RedisProperties props,
-            ObjectProvider<LettuceClientConfigurationBuilderCustomizer> builderCustomizers,
-            ClientResources clientResources) {
-
-        LettuceConnectionConfiguration config = new LettuceConnectionConfiguration(
-                props,
-                emptyProvider(),
-                emptyProvider(),
-                emptyProvider()
-        );
-        return config.redisConnectionFactory(builderCustomizers, clientResources);
-    }
-
     /**
-     * 空 ObjectProvider，getIfAvailable() 永远返回 null，
-     * 强制 LettuceConnectionConfiguration 从 RedisProperties 构建连接配置。
+     * 两种配置来源（{@code spring.data.redis.*} 与 {@code fireworks.redis.multi.datasource.*}）
+     * 归一化后的连接参数，避免 8 个裸参数在方法间传递。
      */
-    @SuppressWarnings("unchecked")
-    private static <T> ObjectProvider<T> emptyProvider() {
-        return (ObjectProvider<T>) EmptyObjectProvider.INSTANCE;
-    }
+    private record Endpoint(String host, int port, String username, String password,
+                            int database, boolean ssl, List<String> nodes,
+                            Duration timeout, Duration connectTimeout) {
 
-    private static class EmptyObjectProvider<T> implements ObjectProvider<T> {
-
-        static final EmptyObjectProvider<?> INSTANCE = new EmptyObjectProvider<>();
-
-        @Override
-        public T getIfAvailable() {
-            return null;
+        static Endpoint of(RedisProperties properties) {
+            // Redisson 侧不支持 sentinel：静默忽略会让应用连到 localhost，宁可直接失败
+            Assert.isNull(properties.getSentinel(),
+                    "Redisson（分布式锁）不支持 spring.data.redis.sentinel，请改用单机 host/port 或 cluster.nodes");
+            List<String> nodes = properties.getCluster() == null ? null : properties.getCluster().getNodes();
+            boolean ssl = properties.getSsl() != null && properties.getSsl().isEnabled();
+            return new Endpoint(properties.getHost(), properties.getPort(), properties.getUsername(),
+                    properties.getPassword(), properties.getDatabase(), ssl, nodes,
+                    properties.getTimeout(), properties.getConnectTimeout());
         }
 
-        @Override
-        public T getIfUnique() {
-            return null;
-        }
-
-        @Override
-        public T getObject() {
-            throw new NoSuchBeanDefinitionException("EmptyObjectProvider has no bean");
-        }
-
-        @Override
-        public T getObject(Object... args) {
-            throw new NoSuchBeanDefinitionException("EmptyObjectProvider has no bean");
-        }
-
-        @Override
-        public Stream<T> stream() {
-            return Stream.empty();
+        static Endpoint of(MultiRedisProperties.DataSource dataSource) {
+            List<String> nodes = dataSource.getCluster() == null ? null : dataSource.getCluster().getNodes();
+            boolean ssl = dataSource.getSsl() != null && dataSource.getSsl().isEnabled();
+            return new Endpoint(dataSource.getHost(), dataSource.getPort(), dataSource.getUsername(),
+                    dataSource.getPassword(), dataSource.getDatabase(), ssl, nodes,
+                    dataSource.getTimeout(), dataSource.getConnectTimeout());
         }
     }
+
 }

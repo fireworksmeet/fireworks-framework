@@ -9,6 +9,12 @@
   ],
   "properties": [
     {
+      "name": "fireworks.token.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用令牌模块（默认开启；关闭后不装配任何 Bean）。"
+    },
+    {
       "name": "fireworks.token.keys[].kid",
       "type": "java.lang.String",
       "description": "密钥标识，写入 JWT header 的 kid；同一配置内必须唯一，轮换时用于区分新旧密钥。"

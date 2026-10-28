@@ -7,8 +7,8 @@ import java.util.List;
 /**
  * 一个投递道：独立的事件类型过滤 + 独立的线程池。
  * <p>
- * 默认道（{@code default}）不指定 {@code includeTypes}，但会排除所有已分道的事件类型，
- * 因此每条事件只会被一个道领取。
+ * 兜底道（名称为 {@link #DEFAULT_LANE_NAME}）不指定 {@code includeTypes}，但会排除所有已分道的事件类型，
+ * 因此每条事件只会被一个道领取。该名称由框架保留，用户配置的道名不得与之重复。
  *
  * @param name         道名（用于日志与线程名前缀）
  * @param batchSize    单次领取上限
@@ -19,6 +19,12 @@ import java.util.List;
  */
 public record OutboxLane(String name, int batchSize, List<String> includeTypes,
                          List<String> excludeTypes, ThreadPoolTaskExecutor executor) {
+
+    /**
+     * 兜底道名称：领取所有「未分到其它道」的事件类型。
+     * <p><b>框架保留字</b>：用户配置 {@code fireworks.outbox.lanes[].name} 时不得使用该名称。
+     */
+    public static final String DEFAULT_LANE_NAME = "default";
 
     public OutboxLane {
         includeTypes = includeTypes == null ? List.of() : List.copyOf(includeTypes);

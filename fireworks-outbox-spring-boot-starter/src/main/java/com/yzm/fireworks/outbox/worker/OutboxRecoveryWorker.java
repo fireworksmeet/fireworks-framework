@@ -57,7 +57,8 @@ public class OutboxRecoveryWorker implements SmartLifecycle {
                 log.warn("[Outbox] 恢复超时 PROCESSING 事件 {} 条（领取时间早于 {}）：未超限的重投，超限的置 DEAD",
                         recovered, before);
             }
-        } catch (Throwable e) {
+        } catch (Exception e) {
+            // 只吞普通异常；Error（OOM 等）交给调度线程，避免在不可信状态下继续重投
             log.error("[Outbox] PROCESSING 恢复任务异常，已忽略本次", e);
         }
     }

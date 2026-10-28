@@ -1,5 +1,6 @@
 package com.yzm.fireworks.webmvc.util;
 
+import com.yzm.fireworks.common.util.StringUtil;
 import com.yzm.fireworks.webmvc.handler.UserAgentAnalyzerWarmupHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -348,7 +349,7 @@ public class ClientInfoUtil {
         if (request == null) {
             return UNKNOWN;
         }
-        String version = firstNonBlank(
+        String version = StringUtil.firstNonBlank(
                 request.getHeader(HEADER_APP_VERSION),
                 request.getHeader(HEADER_X_APP_VERSION),
                 request.getHeader(HEADER_CLIENT_VERSION),
@@ -400,7 +401,7 @@ public class ClientInfoUtil {
         if (request == null) {
             return UNKNOWN;
         }
-        String platform = firstNonBlank(
+        String platform = StringUtil.firstNonBlank(
                 request.getHeader(HEADER_APP_PLATFORM),
                 request.getParameter("platform")
         );
@@ -452,7 +453,7 @@ public class ClientInfoUtil {
         if (request == null) {
             return UNKNOWN;
         }
-        String build = firstNonBlank(
+        String build = StringUtil.firstNonBlank(
                 request.getHeader(HEADER_APP_BUILD),
                 request.getParameter("appBuild")
         );
@@ -466,7 +467,7 @@ public class ClientInfoUtil {
         if (request == null) {
             return UNKNOWN;
         }
-        String channel = firstNonBlank(
+        String channel = StringUtil.firstNonBlank(
                 request.getHeader(HEADER_APP_CHANNEL),
                 request.getParameter("channel")
         );
@@ -572,20 +573,6 @@ public class ClientInfoUtil {
             headers.put(headerName, request.getHeader(headerName));
         }
         return headers;
-    }
-
-    // ==================== 工具方法 ====================
-
-    /**
-     * 返回第一个非空白（trim 后有内容）的字符串，全为空则返回 null。
-     */
-    private static String firstNonBlank(String... candidates) {
-        for (String s : candidates) {
-            if (StringUtils.hasText(s)) {
-                return s.trim();
-            }
-        }
-        return null;
     }
 
     // ==================== 数据类 ====================

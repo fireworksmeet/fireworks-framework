@@ -32,10 +32,16 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- Web（OncePerRequestFilter、HttpServletRequest 等） -->
+        <!-- 只依赖 Servlet API 与 spring-web：不引入 spring-webmvc / Tomcat，
+             避免把 WebFlux 应用被动改成 SERVLET（容器由业务决定） -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>
